@@ -44,9 +44,9 @@ public static class Parsec<E, T>
     
     public static Parsec<E, T, ReadOnlySpan<T>> take(uint amount) =>
         new (Bytes.singleton(OpCode.TakeN).AddUInt32(amount), default);
-    
-    public static Parsec<E, T, T> token(T token) =>
-        new (Bytes.singleton(OpCode.Token), Stack.singleton(token));
+
+    public static Parsec<E, T, ReadOnlySpan<T>> tokens(ReadOnlySpan<T> tokens) =>
+        new (Bytes.singleton(OpCode.Tokens).Add((byte)0), Stack.singleton(tokens));
 
     public static Parsec<E, T, A> pure<A>(A value) 
         where A : allows ref struct =>

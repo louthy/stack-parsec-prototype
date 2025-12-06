@@ -120,9 +120,8 @@ public readonly ref struct Parsec<E, T, A>
                                  .Push(StackReply.OK);
                     break;
 
-                case OpCode.Token:
-                    //if (ProcessTaken(ref state, ref stack, ref taken)) return taken;
-                    throw new NotImplementedException();
+                case OpCode.Tokens:
+                    ProcessTokens(instructions, constants, ref state, ref stack, ref pc, ref taken);
                     break;
                 
                 case OpCode.Invoke:
@@ -181,6 +180,45 @@ public readonly ref struct Parsec<E, T, A>
                     throw new Exception("Invoke: expected StackReply");
                 }
             }
+        }
+    }
+
+    static void ProcessTokens(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    {
+        // Get the tokens
+        if (constants.At<ReadOnlySpan<T>>(instructions[pc++], out var tokens))
+        {
+            var offset = state.Position.Offset;
+            if (offset + tokens.Length > state.Input.Length)
+            {
+                stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
+                             .Push(StackReply.ParseError);
+            }
+            else
+            {
+                var read = state.Input.Slice(state.Position.Offset, tokens.Length);
+                for (var i = 0; i < tokens.Length; i++)
+                {
+                    if (read[i] == tokens[i])
+                    {
+                        state = state.NextToken;
+                        taken++;
+                    }
+                    else
+                    {
+                        stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, read, tokens))
+                                     .Push(StackReply.ParseError);
+                        return;
+                    }
+                }
+                
+                stack = stack.Push(tokens)
+                             .Push(StackReply.OK);
+            }
+        }
+        else
+        {
+            throw new Exception("Tokens: span not found");
         }
     }
 
@@ -378,7 +416,6 @@ public readonly ref struct Parsec<E, T, A>
                     var mb = f(x).Core;
                     return stack.Push(mb)
                                 .Push(StackReply.OK);
-
                 }
                 else
                 {
