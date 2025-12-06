@@ -60,8 +60,8 @@ public readonly ref struct Stack
     {
         if (!Initialised) return Initialise(spaceNeeded);
         if (count - top - bottom >= spaceNeeded) return this;
-        var ncount = count;
-        while (ncount - top - bottom < spaceNeeded) ncount = count << 1;
+        var ncount = count << 1;
+        while (ncount - top - bottom < spaceNeeded) ncount <<= 1;
         Span<byte> nmemory = new byte[ncount];
         var ot = memory.Slice(0, top);
         var ob = memory.Slice(count - bottom, bottom);

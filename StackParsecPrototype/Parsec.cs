@@ -9,7 +9,7 @@ public readonly ref struct Parsec<E, T, A>
 {
     internal readonly ParsecCore Core; 
     
-    internal ByteSeq Instructions => 
+    internal Bytes Instructions => 
         Core.Instructions;
     
     internal Stack Constants => 
@@ -18,7 +18,7 @@ public readonly ref struct Parsec<E, T, A>
     internal Parsec(ParsecCore core) =>
         Core = core;
     
-    internal Parsec(ByteSeq instructions, Stack constants) : 
+    internal Parsec(Bytes instructions, Stack constants) : 
         this(new ParsecCore(instructions, constants)) { }
 
     public ParserResult<E, T, A> Parse(ReadOnlySpan<T> stream, Span<byte> stackMem, string sourceName = "<unknown source>")
@@ -31,7 +31,7 @@ public readonly ref struct Parsec<E, T, A>
         return Parse(instructions, constants, state, stack);
     }
 
-    static ParserResult<E, T, A> Parse(ByteSeq instructions, Stack constants, State<T, E> state, Stack stack)
+    static ParserResult<E, T, A> Parse(Bytes instructions, Stack constants, State<T, E> state, Stack stack)
     {
         var taken = ParseUntyped(instructions, constants, ref state, ref stack);
 
@@ -95,7 +95,7 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static int ParseUntyped(ByteSeq instructions, Stack constants, ref State<T, E> state, ref Stack stack)
+    static int ParseUntyped(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack)
     {
         var pc     = 0;  // program counter
         var taken  = 0;
@@ -318,7 +318,7 @@ public readonly ref struct Parsec<E, T, A>
         var instrs = Instructions.Add((byte)OpCode.InvokeM)
                                  .Add((byte)constIx)
                                  .Add((byte)OpCode.Invoke)
-                                 .Add((byte)constIx + 1);
+                                 .AddInt32((byte)constIx + 1);
 
         var constants = Constants.PushStackOp(go1)
                                  .PushStackOp(go2);

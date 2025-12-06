@@ -14,7 +14,7 @@ public static class Parsec<E, T>
 
         var instrs = p.Instructions
                       .Cons((byte)constIx)
-                      .Cons((byte)OpCode.Label);
+                      .Cons(OpCode.Label);
 
         var objs = p.Constants.Push(name);
 
@@ -22,32 +22,32 @@ public static class Parsec<E, T>
     }
 
     public static Parsec<E, T, A> error<A>(E error) => 
-        new (ByteSeq.singleton(OpCode.Error).Add((byte)0), Stack.singleton(error));
+        new (Bytes.singleton(OpCode.Error).Add((byte)0), Stack.singleton(error));
 
     public static Parsec<E, T, A> @try<A>(in Parsec<E, T, A> p) => 
-        new (p.Instructions.Cons((byte)OpCode.Try), p.Constants);    
+        new (p.Instructions.Cons(OpCode.Try), p.Constants);    
 
     public static Parsec<E, T, A> lookAhead<A>(in Parsec<E, T, A> p) => 
-        new (p.Instructions.Cons((byte)OpCode.LookAhead), p.Constants);    
+        new (p.Instructions.Cons(OpCode.LookAhead), p.Constants);    
 
     public static Parsec<E, T, A> notFollowedBy<A>(in Parsec<E, T, A> p) => 
-        new (p.Instructions.Cons((byte)OpCode.NotFollowedBy), p.Constants);
+        new (p.Instructions.Cons(OpCode.NotFollowedBy), p.Constants);
 
     public static Parsec<E, T, A> observing<A>(in Parsec<E, T, A> p) => 
-        new (p.Instructions.Cons((byte)OpCode.Observing), p.Constants);
+        new (p.Instructions.Cons(OpCode.Observing), p.Constants);
     
     public static Parsec<E, T, Unit> eof =>
-        new (ByteSeq.singleton(OpCode.EOF), default);
+        new (Bytes.singleton(OpCode.EOF), default);
     
     public static Parsec<E, T, T> take1 =>
-        new (ByteSeq.singleton(OpCode.Take1), default);
+        new (Bytes.singleton(OpCode.Take1), default);
     
     public static Parsec<E, T, ReadOnlySpan<T>> take(uint amount) =>
-        new (ByteSeq.singleton(OpCode.TakeN).Add(amount), default);
+        new (Bytes.singleton(OpCode.TakeN).AddUInt32(amount), default);
 
     public static Parsec<E, T, A> pure<A>(A value) 
         where A : allows ref struct =>
-        new (ByteSeq.singleton(OpCode.Pure).Add((byte)0), Stack.singleton(value));
+        new (Bytes.singleton(OpCode.Pure).Add((byte)0), Stack.singleton(value));
 
     public static Parsec<E, T, A> flatten<A>(Parsec<E, T, Parsec<E, T, A>> mma)
         where A : allows ref struct

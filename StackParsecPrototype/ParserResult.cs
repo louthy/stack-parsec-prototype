@@ -58,7 +58,7 @@ public readonly ref struct ParserResult<E, T, A>
 
     public ReadOnlySpan<ParseError<T, E>> Errors =>
         Failed
-            ? state.ParseErrors.ToSpan()
+            ? state.ParseErrors.Span()
             : ReadOnlySpan<ParseError<T, E>>.Empty;
     
     internal ParserResult(int flags, State<T, E> state, A? value)

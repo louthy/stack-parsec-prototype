@@ -1,20 +1,17 @@
-using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace StackParsecPrototype;
 
-public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
-    where T : IEqualityOperators<T, T, bool>
+public readonly ref struct Bytes
 {
     const int InitialSize = 32;
     
-    readonly Span<T> values;
+    readonly Span<byte> values;
     readonly int start;
     readonly int count;
     readonly ConsAdd state;
 
-    internal RefSeq(Span<T> values, int start, int count)
+    internal Bytes(Span<byte> values, int start, int count)
     {
         if(values.Length == 0) throw new ArgumentException("Cannot create a Bytes without a byte buffer with size > 0");
         this.values = values;
@@ -23,7 +20,7 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
         this.state = new ConsAdd(0, 0);
     }
 
-    internal RefSeq(Span<T> values)
+    internal Bytes(Span<byte> values)
     {
         if(values.Length == 0) throw new ArgumentException("Cannot create a Bytes without a byte buffer with size > 0");
         this.values = values;
@@ -41,15 +38,12 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
     public bool IsEmpty =>
         count == 0;
     
-    public static RefSeq<T> Empty => 
-        new(new T[InitialSize], InitialSize >> 1, 0);
-    
-    public T this[int offset] =>
+    public byte this[int offset] =>
         offset < count
             ? values[start + offset]
             : throw new IndexOutOfRangeException();
 
-    public static RefSeq<T> Initialise(int size = InitialSize)
+    public static Bytes Initialise(int size = InitialSize)
     {
         size--;
         size |= size >> 1;
@@ -58,86 +52,147 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
         size |= size >> 8;
         size |= size >> 16;
         size++;
-        return new RefSeq<T>(new T[size]);
+        return new Bytes(new byte[size]);
     }
 
-    public RefSeq<T> ExpandUp(int spaceNeeded)
+    public Bytes ExpandUp(int spaceNeeded)
     {
         if (!Initialised) return Initialise(spaceNeeded);
         if (values.Length - start - count >= spaceNeeded) return this;
         
         var ncount = values.Length << 1;
         while (ncount - count < spaceNeeded) ncount <<= 1;
-
-        Span<T> nvalues = new T[ncount];
-        var     ov      = values.Slice(start, count);
-        var     nv      = nvalues.Slice(start, count);
+        
+        Span<byte> nvalues = new byte[ncount];
+        var        ov      = values.Slice(start, count);
+        var        nv      = nvalues.Slice(start, count);
         ov.CopyTo(nv);
         
-        return new RefSeq<T>(nvalues, start, count);
+        return new Bytes(nvalues, start, count);
     }    
 
-    public RefSeq<T> ExpandDown(int spaceNeeded)
+    public Bytes ExpandDown(int spaceNeeded)
     {
         if (!Initialised) return Initialise(spaceNeeded);
         if (start >= spaceNeeded) return this;
         
         var ncount = values.Length << 1;
         while (ncount - count < spaceNeeded) ncount <<= 1;
-
-        Span<T> nvalues = new T[ncount];
-        var     nstart  = ncount >> 1;
-        var     ov      = values.Slice(start, count);
-        var     nv      = nvalues.Slice(nstart , count);
+        
+        Span<byte> nvalues = new byte[ncount];
+        var        nstart  = ncount >> 1;
+        var        ov      = values.Slice(start, count);
+        var        nv      = nvalues.Slice(nstart , count);
         ov.CopyTo(nv);
         
-        return new RefSeq<T>(nvalues, nstart, count);
+        return new Bytes(nvalues, nstart, count);
     }    
     
-    public RefSeq<T> Clone()
+    public Bytes Clone()
     {
         if(!Initialised) return Initialise();
-        Span<T> nvalues = new T[values.Length];
+        Span<byte> nvalues = new byte[values.Length];
         values.Slice(start, count).CopyTo(nvalues.Slice(start, count));
-        return new RefSeq<T>(nvalues, start, count);
+        return new Bytes(nvalues, start, count);
     }
     
-    public RefSeq<T> Slice(int start) =>
+    public Bytes Slice(int start) =>
         Initialised
             ? new (values, this.start + Math.Min(start, count), count - Math.Min(start, count))
             : Initialise().Slice(start);
     
-    public RefSeq<T> Slice(int start, int count) =>
+    public Bytes Slice(int start, int count) =>
         Initialised
             ? new (values, this.start + Math.Min(start, this.count), Math.Min(this.count - start, count))
             : Initialise().Slice(start, count);
     
-    public ReadOnlySpan<T> Span() =>
+    public ReadOnlySpan<byte> Span() =>
         Initialised
             ? values.Slice(start, count)
             : Initialise().Span();
     
-    public ReadOnlySpan<T> Span(int start) =>
+    public ReadOnlySpan<byte> Span(int start) =>
         Slice(start).Span();
     
-    public ReadOnlySpan<T> Span(int start, int count) =>
+    public ReadOnlySpan<byte> Span(int start, int count) =>
         Slice(start, count).Span();
+
+    public Bytes Add(OpCode opCode) =>
+        Add((byte)opCode);
+
+    public Bytes Cons(OpCode opCode) =>
+        Cons((byte)opCode);
+
+    public Bytes AddUInt32(uint value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    public Bytes ConsUInt32(uint value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Cons(buffer);
+    }
+
+    public Bytes AddInt32(int value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    public Bytes ConsInt32(int value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Cons(buffer);
+    }
+
+    public Bytes AddUInt16(ushort value)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    public Bytes ConsUInt16(ushort value)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Cons(buffer);
+    }
+
+    public Bytes AddInt16(short value)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    public Bytes ConsInt16(short value)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Cons(buffer);
+    }
     
-    public RefSeq<T> Add(params ReadOnlySpan<T> valuesToAdd)
+    public Bytes Add(params ReadOnlySpan<byte> valuesToAdd)
     {
         if(!Initialised) return Initialise(Math.Max(valuesToAdd.Length, InitialSize)).Add(valuesToAdd);
 
-        var size   = valuesToAdd.Length;
-        var total  = count + valuesToAdd.Length;
-        var refseq = ExpandUp(total);
+        var size  = valuesToAdd.Length;
+        var bytes = ExpandUp(size);
 
-        if (Interlocked.CompareExchange(ref refseq.state.CanAdd, 1, 0) == 0)
+        if (Interlocked.CompareExchange(ref bytes.state.CanAdd, 1, 0) == 0)
         {
             // Adding to a sequence that's never been added to before.
             // This is the fastest path because we can grow into the existing buffer
-            var d = refseq.values.Slice(refseq.start + refseq.count, size);
+            var d = bytes.values.Slice(bytes.start + bytes.count, size);
             valuesToAdd.CopyTo(d);
-            return new RefSeq<T>(refseq.values, refseq.start, refseq.count + size);
+            return new Bytes(bytes.values, bytes.start, bytes.count + size);
         }
         else
         {
@@ -148,20 +203,19 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
         }
     }
 
-    public RefSeq<T> Cons(params ReadOnlySpan<T> valuesToCons)
+    public Bytes Cons(params ReadOnlySpan<byte> valuesToCons)
     {
         if(!Initialised) return Initialise(Math.Max(valuesToCons.Length, InitialSize)).Add(valuesToCons);
 
-        var size   = valuesToCons.Length;
-        var total  = count + valuesToCons.Length;
-        var refseq = ExpandDown(total);
-        
-        if (Interlocked.CompareExchange(ref refseq.state.CanCons, 1, 0) == 0)
+        var size  = valuesToCons.Length;
+        var bytes = ExpandDown(size);
+
+        if (Interlocked.CompareExchange(ref bytes.state.CanCons, 1, 0) == 0)
         {
             // Adding to a sequence that's never been added to before.
             // This is the fastest path because we can grow into the existing buffer
-            valuesToCons.CopyTo(refseq.values.Slice(refseq.start - size, size));
-            return new RefSeq<T>(refseq.values, refseq.start - size, refseq.count + size);
+            valuesToCons.CopyTo(bytes.values.Slice(bytes.start - size, size));
+            return new Bytes(bytes.values, bytes.start - size, bytes.count + size);
         }
         else
         {
@@ -171,30 +225,36 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
             return Clone().Cons(valuesToCons);
         }       
     }
+    
+    public static Bytes Empty => 
+        new(new byte[InitialSize], InitialSize >> 1, 0);
 
-    public static RefSeq<T> singleton(T value)
+    public static Bytes singleton(OpCode value) =>
+        singleton((byte)value);
+
+    public static Bytes singleton(byte value)
     {
-        Span<T> mem = new T[InitialSize];
+        Span<byte> mem = new byte[InitialSize];
         mem[InitialSize >> 1] = value;
-        return new RefSeq<T>(mem, InitialSize >> 1, 1);
+        return new Bytes(mem, InitialSize >> 1, 1);
     }
 
-    public static RefSeq<T> create(Span<T> values) =>
+    public static Bytes create(Span<byte> values) =>
         new(values, 0, values.Length);
 
-    public static RefSeq<T> create(Span<T> values, int start, int count) =>
+    public static Bytes create(Span<byte> values, int start, int count) =>
         start + count <= values.Length 
             ? new(values, start, count)
             : throw new ArgumentException("Invalid range");
     
     public ref struct Enumerator
     {
-        readonly Span<T> values;
+        readonly Span<byte> values;
         readonly int start;
         readonly int end;
         int current;
 
-        internal Enumerator(Span<T> values, int start, int count)
+        internal Enumerator(Span<byte> values, int start, int count)
         {
             this.values = values;
             this.start = start;
@@ -202,7 +262,7 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
             current = start - 1;
         }
 
-        public T Current => 
+        public byte Current => 
             values[current];
 
         public bool MoveNext()
@@ -217,7 +277,4 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
 
     public Enumerator GetEnumerator() => 
         new (values, start, count);
-
-    public ReadOnlySpan<T> Tokens => 
-        values.Slice(start, count);
 }
