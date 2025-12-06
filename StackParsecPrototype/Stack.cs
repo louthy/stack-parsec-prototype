@@ -163,16 +163,20 @@ public readonly ref struct Stack
         // Write the size of the value
         var header1 = stack.memory.Slice(stack.top + size, 4);
         var header2 = stack.memory.Slice(stack.top + size + 4, 4);
-        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header1), size);                     // Size of the value  
-        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header2), typeof(A).MetadataToken);  // Allows for simple type-checking
-
+        var metadataToken = typeof(A).MetadataToken;
+        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header1), size);           // Size of the value  
+        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header2), metadataToken);  // Allows for simple type-checking
+#if DEBUG
+        Console.WriteLine($"PUSH ({metadataToken}): {typeof(A).Name}");
+#endif        
+        
         return new Stack(stack.objects, stack.memory, ntop, nbottom, stack.count);
     }
 
-    public Stack PushStackOp(Func<Stack, Stack> op) =>
+    public Stack PushStackOp(Func<Stack, Stack, Stack> op) =>
         Initialised
-            ? PushObj(op, typeof(Func<Stack, Stack>).MetadataToken)
-            : Initialise().PushObj(op, typeof(Func<Stack, Stack>).MetadataToken);
+            ? PushObj(op, typeof(Func<Stack, Stack, Stack>).MetadataToken)
+            : Initialise().PushObj(op, typeof(Func<Stack, Stack, Stack>).MetadataToken);
 
     Stack PushObj<A>(A value, int metadataToken)
     {
@@ -195,25 +199,33 @@ public readonly ref struct Stack
         var header2 = stack.memory.Slice(stack.top + 4, 4);
         objix |= 0x10000000;
         Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header1), objix); // Index into the objects array
-        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header2),
-            metadataToken); // Allows for simple type-checking
+        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header2), metadataToken); // Allows for simple type-checking
 
+#if DEBUG
+        Console.WriteLine($"PUSH ({metadataToken}): {typeof(A).Name}");
+#endif        
+        
         return new Stack(stack.objects.Add(value), stack.memory, ntop, nbottom, stack.count);
     }
 
     public bool Peek<A>(out A returnValue)
         where A : allows ref struct
     {
-        if (!Initialised)
+        if (!Initialised || top < headerSize)
         {
             returnValue = default!;
             return false;
         }
-        if (top < headerSize) throw new InvalidOperationException("Stack underflow");
         var header = memory.Slice(top - headerSize, 4);
         var metadataToken = BitConverter.ToInt32(memory.Slice(top - headerSize + 4, 4));
         if (metadataToken != typeof(A).MetadataToken)
         {
+#if DEBUG
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"PEEK-FAIL (Stack {metadataToken} != Type {typeof(A).MetadataToken}): {typeof(A).Name}");
+            Console.ForegroundColor = ConsoleColor.White;
+#endif        
+            
             returnValue = default!;
             return false;
         }
@@ -236,12 +248,24 @@ public readonly ref struct Stack
                     }
                     else
                     {
+#if DEBUG
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"PEEK-FAIL ({metadataToken}): Stack {objects[ix]?.GetType().Name} != Type {typeof(A).Name}");
+                        Console.ForegroundColor = ConsoleColor.White;
+#endif
+                        
                         returnValue = default!;
                         return false;
                     }
                 }
                 else
                 {
+#if DEBUG
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine($"PEEK-FAIL ({metadataToken}): {typeof(A).Name} - not at the top of the stack");
+                    Console.ForegroundColor = ConsoleColor.White;
+#endif
+                    
                     returnValue = default!;
                     return false;
                 }
@@ -266,7 +290,7 @@ public readonly ref struct Stack
                 var ix = objix & 0xFFFFFFF;
                 if (ix == objects.Count - 1)
                 {
-                    return new Stack(objects, memory, top - headerSize, bottom - 4, count);
+                    return new Stack(objects.Pop(), memory, top - headerSize, bottom - 4, count);
                 }
                 else
                 {

@@ -141,26 +141,46 @@ public readonly ref struct Parsec<E, T, A>
                     ProcessTakeN(instructions, ref state, ref stack, ref pc, ref taken);
                     break;
             }
-            
-            if (stack.Peek<StackReply>(out var reply))
-            {
-                switch (reply)
-                {
-                    case StackReply.OK:
-                        // Remove the OK from the stack, leaving just the success value
-                        stack = stack.Pop();
-                        break;
 
-                    default:
-                        // We've got a failure, so we early-out with the failure value remaining on the stack
-                        return taken;
+            var loop = true;
+            while (loop)
+            {
+                if (stack.Peek<StackReply>(out var reply))
+                {
+                    switch (reply)
+                    {
+                        case StackReply.OK:
+                            // Remove the OK from the stack, leaving just the success value
+                            stack = stack.Pop();
+
+                            // If the top of the stack is a ParserCore, then run it.  This means any of the 
+                            // op-code processes can return more code to run.
+                            if (stack.Peek<ParsecCore>(out var p))
+                            {
+                                // We have a parser, so pop it
+                                stack = stack.Pop();
+
+                                // Run the parser
+                                taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
+                            }
+                            else
+                            {
+                                // If there isn't a ParserCore on the stack, then exit the loop and keep
+                                // running the instructions.
+                                loop = false;
+                            }
+                            break;
+
+                        default:
+                            // We've got a failure, so we early-out with the failure value remaining on the stack
+                            return taken;
+                    }
+                }
+                else
+                {
+                    throw new Exception("Invoke: expected StackReply");
                 }
             }
-            else
-            {
-                throw new Exception("Invoke: expected StackReply");
-            }
-            
         }
     }
 
@@ -203,9 +223,14 @@ public readonly ref struct Parsec<E, T, A>
 
     static void ProcessInvoke(Bytes instructions, Stack constants, ref Stack stack, ref int pc)
     {
-        if (constants.At<Func<Stack, Stack>>(instructions[pc++], out var f))
+        // Get the wrapper function
+        if (constants.At<Func<Stack, Stack, Stack>>(instructions[pc++], out var go))
         {
-            stack = f(stack);
+            // Read the function to invoke
+            stack = stack.ReadFromAndPush(constants, instructions[pc++]);
+            
+            // Invoke the wrapper function that calls the real function
+            stack = go(stack, constants);
         }
         else
         {
@@ -222,49 +247,13 @@ public readonly ref struct Parsec<E, T, A>
         ref int taken)
     {
         // Get the delegate to invoke from the constants
-        if (constants.At<Func<Stack, Stack>>(instructions[pc++], out var f))
+        if (constants.At<Func<Stack, Stack, Stack>>(instructions[pc++], out var go))
         {
+            // Read the function to invoke
+            stack = stack.ReadFromAndPush(constants, instructions[pc++]);
+            
             // Invoke the delegate
-            stack = f(stack);
-                        
-            // Get the result of the invocation
-            if (stack.Peek<StackReply>(out var reply))
-            {
-                switch (reply)
-                {
-                    case StackReply.OK:
-                                    
-                        // The result was successful, so pop the OK off the stack
-                        stack = stack.Pop();
-                                    
-                        // We expect a new parser to be on the top of the stack
-                        if (stack.Peek<ParsecCore>(out var p))
-                        {
-                            // We have a parser, so pop it
-                            stack = stack.Pop();
-                                        
-                            // Run the parser
-                            taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
-                            return;
-                        }
-                        else
-                        {
-                            // If there isn't a ParserCore on the stack, then we've got a bug
-                            throw new Exception("InvokeM: expected ParsecCore");
-                        }
-                                 
-                    default:
-                        // The result of the invocation was not successful, so we early-out with the 
-                        // failure value remaining on the stack
-                        return;
-                }
-            }
-            else
-            {
-                // If there isn't a StackReply on the stack, then we've got a bug
-                throw new Exception("InvokeM: expected StackReply");
-            }
-                        
+            stack = go(stack, constants);
         }
         else
         {
@@ -284,24 +273,34 @@ public readonly ref struct Parsec<E, T, A>
         if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
 
         var instrs = Instructions.Add((byte)OpCode.Invoke)
-                                 .Add((byte)constIx);
+                                 .Add((byte)constIx)
+                                 .Add((byte)(constIx + 1));
 
-        var constants = Constants.PushStackOp(go);
+        var constants = Constants.PushStackOp(go)
+                                 .Push(f);
 
         return new Parsec<E, T, B>(instrs, constants);
 
-        Stack go(Stack stack)
+        static Stack go(Stack stack, Stack constants)
         {
-            if (stack.Peek<A>(out var x))
+            if (stack.Peek<Func<A, B>>(out var f))
             {
                 stack = stack.Pop();
-                var v = f(x);
-                return stack.Push(v)
-                            .Push(StackReply.OK);
+                if (stack.Peek<A>(out var x))
+                {
+                    stack = stack.Pop();
+                    var v = f(x);
+                    return stack.Push(v)
+                                .Push(StackReply.OK);
+                }
+                else
+                {
+                    throw new Exception("Stack underflow");
+                }
             }
             else
             {
-                throw new Exception("Stack underflow");
+                throw new Exception("Expected Func<A, B> on stack");
             }
         }
     }
@@ -314,24 +313,34 @@ public readonly ref struct Parsec<E, T, A>
         if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
         
         var instrs = Instructions.Add((byte)OpCode.Invoke)
-                                 .Add((byte)constIx);
+                                 .Add((byte)constIx)
+                                 .Add((byte)(constIx + 1));
 
-        var constants = Constants.PushStackOp(go);
+        var constants = Constants.PushStackOp(go)
+                                 .Push(bind);
 
         return new Parsec<E, T, B>(instrs, constants);
         
-        Stack go(Stack stack)
+        static Stack go(Stack stack, Stack constants)
         {
-            if (stack.Peek<A>(out var x))
+            if (stack.Peek<Func<A, Parsec<E, T, B>>>(out var f))
             {
-                // We don't pop the top stack value here as we need it for the project function
-                var mb = bind(x);
-                return stack.Push(mb)
-                            .Push(StackReply.OK);
+                stack = stack.Pop();
+                if (stack.Peek<A>(out var x))
+                {
+                    // We don't pop the top stack value here as we need it for the project function
+                    var mb = f(x);
+                    return stack.Push(mb)
+                                .Push(StackReply.OK);
+                }
+                else
+                {
+                    throw new Exception("Stack underflow");
+                }
             }
             else
             {
-                throw new Exception("Stack underflow");
+                throw new Exception("Expected Func<A, Parsec<E, T, B>> on stack");
             }
         }
     }    
@@ -346,44 +355,65 @@ public readonly ref struct Parsec<E, T, A>
         
         var instrs = Instructions.Add((byte)OpCode.InvokeM)
                                  .Add((byte)constIx)
+                                 .Add((byte)(constIx + 1))
                                  .Add((byte)OpCode.Invoke)
-                                 .Add((byte)(constIx + 1));
+                                 .Add((byte)(constIx + 2))
+                                 .Add((byte)(constIx + 3));
 
         var constants = Constants.PushStackOp(go1)
-                                 .PushStackOp(go2);
+                                 .Push(bind) 
+                                 .PushStackOp(go2)
+                                 .Push(project);
 
         return new Parsec<E, T, C>(instrs, constants);
         
-        Stack go1(Stack stack)
+        static Stack go1(Stack stack, Stack constants)
         {
-            if (stack.Peek<A>(out var x))
-            {
-                // We don't pop the top stack value here as we need it for the project function
-                var mb = bind(x).Core;
-                return stack.Push(mb)
-                            .Push(StackReply.OK);
-                    
-            }
-            else
-            {
-                throw new Exception("Stack underflow");
-            }
-        }
-        
-        Stack go2(Stack stack)
-        {
-            if (stack.Peek<B>(out var y))
+            if (stack.Peek<Func<A, Parsec<E, T, B>>>(out var f))
             {
                 stack = stack.Pop();
                 if (stack.Peek<A>(out var x))
                 {
-                    stack = stack.Pop();
-                    var z = project(x, y);
-                    return stack.Push(z)
+                    // We don't pop the top stack value here as we need it for the project function
+                    var mb = f(x).Core;
+                    return stack.Push(mb)
                                 .Push(StackReply.OK);
+
+                }
+                else
+                {
+                    throw new Exception("Stack underflow");
                 }
             }
-            throw new Exception("Stack underflow");
+            else
+            {
+                throw new Exception("Expected Func<A, Parsec<E, T, B>> on stack");
+            }
+        }
+        
+        static Stack go2(Stack stack, Stack constants)
+        {
+            if (stack.Peek<Func<A, B, C>>(out var f))
+            {
+                stack = stack.Pop();
+                if (stack.Peek<B>(out var y))
+                {
+                    stack = stack.Pop();
+                    if (stack.Peek<A>(out var x))
+                    {
+                        stack = stack.Pop();
+                        var z = f(x, y);
+                        return stack.Push(z)
+                                    .Push(StackReply.OK);
+                    }
+                }
+
+                throw new Exception("Stack underflow");
+            }
+            else
+            {
+                throw new Exception("Expected Func<A, B, C> on stack");
+            }
         }
     }
 }

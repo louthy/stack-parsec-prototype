@@ -110,7 +110,7 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
     
     public RefSeq<T> Slice(int start, int count) =>
         Initialised
-            ? new (values, this.start + Math.Min(start, this.count), Math.Min(this.count - start, count))
+            ? new (values, this.start + Math.Min(start, this.count), Math.Min(this.count - Math.Min(start, this.count), count))
             : Initialise().Slice(start, count);
     
     public ReadOnlySpan<T> Span() =>
@@ -171,6 +171,12 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
             // So we must clone.
             return Clone().Cons(valuesToCons);
         }       
+    }
+
+    public RefSeq<T> Pop()
+    {
+        if( count == 0 ) throw new InvalidOperationException("Cannot pop from an empty sequence");
+        return Slice(0, count - 1);
     }
 
     public static RefSeq<T> singleton(T value)
