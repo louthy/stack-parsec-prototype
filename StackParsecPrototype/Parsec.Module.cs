@@ -37,13 +37,13 @@ public static class Parsec<E, T>
         new (p.Instructions.Cons((byte)OpCode.Observing), p.Constants);
     
     public static Parsec<E, T, Unit> eof =>
-        new (ByteSeq.singleton(OpCode.EOF), Stack.Empty);
+        new (ByteSeq.singleton(OpCode.EOF), default);
     
     public static Parsec<E, T, T> take1 =>
-        new (ByteSeq.singleton(OpCode.Take1), Stack.Empty);
+        new (ByteSeq.singleton(OpCode.Take1), default);
     
     public static Parsec<E, T, ReadOnlySpan<T>> take(uint amount) =>
-        new (ByteSeq.singleton(OpCode.TakeN).Add(amount), Stack.Empty);
+        new (ByteSeq.singleton(OpCode.TakeN).Add(amount), default);
 
     public static Parsec<E, T, A> pure<A>(A value) 
         where A : allows ref struct =>

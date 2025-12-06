@@ -9,7 +9,6 @@ Span<byte> stackMem = stackalloc byte[1024];
  var p4 = from x in take1
           from y in take1
           from z in take1
-          from v in take1
           select (x, y, z);
 
 /*var p5 = pure("testing")
