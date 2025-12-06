@@ -12,6 +12,9 @@ Parser combinators in C# that leverage LINQ (like Parsec and Megaparsec in langu
 temporary heap-resident objects. This is an attempt to see how far I can push the `ref struct` idea to create 
 stack-resident parser-combinators.
 
+_There's no way to remove all allocations (and keep the pure functional style and LINQ operators), but it should be
+possible to massively reduce the allocations for a certain subset of parser capabilities._
+
 One early realisation is that to make something like this work, I have had to effectively rebuild core ideas from
 the .NET runtime (stacks, object reference tracking, byte-code instruction set, etc.) -- this tells me that it's
 probably better to let the highly optimised .NET runtime do what it's good at (rather than create a poor man's 
