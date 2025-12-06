@@ -9,6 +9,7 @@ public enum OpCode : byte
     InvokeM,
     Take1,
     TakeN,
+    TakeWhile,
     
     Label,
     Try,

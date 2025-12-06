@@ -26,13 +26,14 @@ Span<byte> stackMem = stackalloc byte[1024];
 //          from z in tokens("abc").Map(z1 => z1.ToString())
 //          select $"({x}, {y}, {z})";
 
-var p7 = from x in @string("abc")
-         from y in @string("xyz")
-         from z in @string("abc")
-         select $"({x}, {y}, {z})";
+// var p7 = from x in @string("abc")
+//          from y in @string("xyz")
+//          from z in @string("abc")
+//          select $"({x}, {y}, {z})";
 
+var p8 = takeWhile(Char.IsLetter);
 
-var r = p7.Parse("abcxyzabc", stackMem);
+var r = p8.Parse("abcxyzabc", stackMem);
 
 switch (r)
 {

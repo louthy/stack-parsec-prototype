@@ -44,6 +44,9 @@ public static class Module<E, T>
     
     public static Parsec<E, T, ReadOnlySpan<T>> take(uint amount) =>
         new (Bytes.singleton(OpCode.TakeN).AddUInt32(amount), default);
+    
+    public static Parsec<E, T, ReadOnlySpan<T>> takeWhile(Func<T, bool> predicate) =>
+        new (Bytes.singleton(OpCode.TakeWhile).Add((byte)0), Stack.singleton(predicate));
 
     public static Parsec<E, T, ReadOnlySpan<T>> tokens(ReadOnlySpan<T> tokens) =>
         new (Bytes.singleton(OpCode.Tokens).Add((byte)0), Stack.singleton(tokens));
