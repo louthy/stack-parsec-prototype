@@ -31,7 +31,7 @@ Span<byte> stackMem = stackalloc byte[1024];
 //          from z in @string("abc")
 //          select $"({x}, {y}, {z})";
 
-var p8 = takeWhile(Char.IsLetter);
+var p8 = takeWhile(x => x is 'a' or 'b' or 'c');
 
 var r = p8.Parse("abcxyzabc", stackMem);
 
