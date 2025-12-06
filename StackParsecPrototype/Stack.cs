@@ -123,6 +123,9 @@ public readonly ref struct Stack
         return new Stack(objects, memory, ntop, nbottom, count);
     }
 
+    public Stack PushStackOp(Func<Stack, Stack> op) =>
+        PushObj(op, typeof(Func<Stack, Stack>).MetadataToken);
+    
     Stack PushObj<A>(A value, int metadataToken)
     {
         var ntop = top + headerSize;

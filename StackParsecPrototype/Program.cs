@@ -9,6 +9,7 @@ Span<byte> stackMem = stackalloc byte[1024];
  var p4 = from x in take1
           from y in take1
           from z in take1
+          from v in take1
           select (x, y, z);
 
 /*var p5 = pure("testing")
@@ -17,6 +18,14 @@ Span<byte> stackMem = stackalloc byte[1024];
 
 var r = p4.Parse("abc".AsSpan(), stackMem);
 
-var rv = r.Value;
+switch (r)
+{
+    case { Ok: true }:
+        Console.WriteLine(r.Value);
+        break;
+    
+    default:
+        Console.WriteLine(r.Errors.ToString());
+        break;    
+}
 
-Console.WriteLine("Hello, World!");

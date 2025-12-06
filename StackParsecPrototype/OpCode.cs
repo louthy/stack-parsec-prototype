@@ -14,6 +14,7 @@ public enum OpCode : byte
     TakeN,
     Bind,
     Flatten,
-    Map
+    Invoke,
+    InvokeM
 }
 
