@@ -3,21 +3,6 @@ using LanguageExt;
 
 namespace StackParsecPrototype;
 
-public readonly ref struct ParsecCore(ByteSeq instructions, Stack constants)
-{
-    public readonly ByteSeq Instructions = instructions;
-    public readonly Stack Constants = constants;
-}
-
-/*
-public readonly ref struct ParsecReply(ByteSeq instructions, ObjSeq constants, Stack stack)
-{
-    public readonly ByteSeq Instructions = instructions;
-    public readonly ObjSeq Constants = constants;
-    public readonly Stack Stack = stack;
-}
-*/
-
 public readonly ref struct Parsec<E, T, A>
     where T : IEqualityOperators<T, T, bool>
     where A : allows ref struct
