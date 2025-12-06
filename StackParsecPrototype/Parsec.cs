@@ -120,128 +120,174 @@ public readonly ref struct Parsec<E, T, A>
                     break;
 
                 case OpCode.Invoke:
-                {
-                    if (constants.At<Func<Stack, Stack>>(instructions[pc++], out var f))
-                    {
-                        stack = f(stack);
-                        if (stack.Peek<StackReply>(out var reply))
-                        {
-                            switch (reply)
-                            {
-                                 case StackReply.OK:
-                                     stack = stack.Pop();                                     
-                                     break;
-                                 
-                                 default:
-                                     return taken;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        throw new Exception("Invoke: delegate not found");
-                    }
-                    break; 
-                }
+                    if (ProcessInvoke(instructions, constants, ref stack, ref pc)) return taken;
+                    break;
 
                 case OpCode.InvokeM:
-                {
-                    if (constants.At<Func<Stack, Stack>>(instructions[pc++], out var f))
-                    {
-                        stack = f(stack);
-                        if (stack.Peek<StackReply>(out var reply))
-                        {
-                            switch (reply)
-                            {
-                                case StackReply.OK:
-                                    stack = stack.Pop();
-                                    if (stack.Peek<ParsecCore>(out var p))
-                                    {
-                                        stack = stack.Pop();
-                                        taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
-                                        
-                                        if (stack.Peek<StackReply>(out var reply1))
-                                        {
-                                            switch (reply1)
-                                            {
-                                                case StackReply.OK:
-                                                    stack = stack.Pop();
-                                                    break;
+                    if (ProcessInvokeM(instructions, constants, ref state, ref stack, ref pc, ref taken)) return taken;
+                    break;
 
-                                                default:
-                                                    return taken;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            throw new Exception("InvokeM: expected StackReply");
-                                        }
-                                    }
-                                    else
-                                    {
-                                        throw new Exception("InvokeM: expected ParsecCore");
-                                    }
-                                    break;
-                                 
-                                default:
-                                    return taken;
+                case OpCode.Take1:
+                    if (ProcessTaken(ref state, ref stack, ref taken)) return taken;
+                    break;
+
+                case OpCode.TakeN:
+                    if (ProcessTakeN(instructions, ref state, ref stack, ref pc, ref taken)) return taken;
+                    break;
+            }
+        }
+    }
+
+    static bool ProcessTakeN(Bytes instructions, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    {
+        var offset = state.Position.Offset;
+        var n      = BitConverter.ToInt32(instructions.Slice(pc, 4).Span());
+        pc += 4;
+        if (offset + n > state.Input.Length)
+        {
+            stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
+                         .Push(StackReply.ParseError);
+            return true;
+        }
+        else
+        {
+            var ts = state.Input.Slice(offset, n);
+            stack = stack.Push(ts);
+            state = state.Next(n);
+            taken += n;
+        }
+
+        return false;
+    }
+
+    static bool ProcessTaken(ref State<T, E> state, ref Stack stack, ref int taken)
+    {
+        var offset = state.Position.Offset;
+        if (offset + 1 > state.Input.Length)
+        {
+            stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
+                         .Push(StackReply.ParseError);
+            return true;
+        }
+        else
+        {
+            stack = stack.Push(state.Input[state.Position.Offset]);
+            state = state.NextToken;
+            taken++;
+            return false;
+        }
+    }
+
+    static bool ProcessInvoke(Bytes instructions, Stack constants, ref Stack stack, ref int pc)
+    {
+        if (constants.At<Func<Stack, Stack>>(instructions[pc++], out var f))
+        {
+            stack = f(stack);
+            if (stack.Peek<StackReply>(out var reply))
+            {
+                switch (reply)
+                {
+                    case StackReply.OK:
+                        stack = stack.Pop();
+                        return false;
+
+                    default:
+                        return true;
+                }
+            }
+            else
+            {
+                throw new Exception("Invoke: expected StackReply");
+            }
+        }
+        else
+        {
+            throw new Exception("Invoke: delegate not found");
+        }
+    }
+
+    static bool ProcessInvokeM(
+        Bytes instructions, 
+        Stack constants, 
+        ref State<T, E> state, 
+        ref Stack stack, 
+        ref int pc,
+        ref int taken)
+    {
+        // Get the delegate to invoke from the constants
+        if (constants.At<Func<Stack, Stack>>(instructions[pc++], out var f))
+        {
+            // Invoke the delegate
+            stack = f(stack);
+                        
+            // Get the result of the invocation
+            if (stack.Peek<StackReply>(out var reply))
+            {
+                switch (reply)
+                {
+                    case StackReply.OK:
+                                    
+                        // The result was successful, so pop the OK off the stack
+                        stack = stack.Pop();
+                                    
+                        // We expect a new parser to be on the top of the stack
+                        if (stack.Peek<ParsecCore>(out var p))
+                        {
+                            // We have a parser, so pop ti
+                            stack = stack.Pop();
+                                        
+                            // Run the parser
+                            taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
+                                        
+                            // Get the result of running the parser
+                            if (stack.Peek<StackReply>(out var reply1))
+                            {
+                                switch (reply1)
+                                {
+                                    case StackReply.OK:
+                                        // The result was successful, so pop the OK off the stack
+                                        // that will leave just the success-value on the stack
+                                        stack = stack.Pop();
+                                        break;
+
+                                    default:
+                                        // The result was not successful, so we early-out with the 
+                                        // failure value remaining on the stack
+                                        return true;
+                                }
+                            }
+                            else
+                            {
+                                // If there isn't a StackReply on the stack, then we've got a bug
+                                throw new Exception("InvokeM: expected StackReply");
                             }
                         }
                         else
                         {
-                            throw new Exception("InvokeM: expected StackReply");
+                            // If there isn't a ParserCore on the stack, then we've got a bug
+                            throw new Exception("InvokeM: expected ParsecCore");
                         }
-                        
-                    }
-                    else
-                    {
-                        throw new Exception("InvokeM: delegate not found");
-                    }
-                    break; 
-                }
-
-                case OpCode.Take1:
-                {
-                    var offset = state.Position.Offset;
-                    if (offset + 1 > state.Input.Length)
-                    {
-                        stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                                     .Push(StackReply.ParseError);
-                        return taken;
-                    }
-                    else
-                    {
-                        stack = stack.Push(state.Input[state.Position.Offset]);
-                        state = state.NextToken;
-                        taken++;
-                    }
-
-                    break;
-                }
-
-                case OpCode.TakeN:
-                {
-                    var offset = state.Position.Offset;
-                    var n      = BitConverter.ToInt32(instructions.Slice(pc, 4).Span());
-                    pc += 4;
-                    if (offset + n > state.Input.Length)
-                    {
-                        stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                                     .Push(StackReply.ParseError);
-                        return taken;
-                    }
-                    else
-                    {
-                        var ts = state.Input.Slice(offset, n);
-                        stack = stack.Push(ts);
-                        state = state.Next(n);
-                        taken += n;
-                    }
-
-                    break;
+                        break;
+                                 
+                    default:
+                        // The result of the invocation was not successful, so we early-out with the 
+                        // failure value remaining on the stack
+                        return true;
                 }
             }
+            else
+            {
+                // If there isn't a StackReply on the stack, then we've got a bug
+                throw new Exception("InvokeM: expected StackReply");
+            }
+                        
         }
+        else
+        {
+            // If there isn't a Func in the constants, then we've got a bug
+            throw new Exception("InvokeM: delegate not found");
+        }
+        return false;
     }
 
     public Parsec<E, T, B> Select<B>(Func<A, B> f) =>
