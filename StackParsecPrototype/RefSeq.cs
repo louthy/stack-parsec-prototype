@@ -1,11 +1,6 @@
-using System.Numerics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-
 namespace StackParsecPrototype;
 
 public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
-    where T : IEqualityOperators<T, T, bool>
 {
     const int InitialSize = 32;
     
@@ -43,6 +38,12 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
     
     public static RefSeq<T> Empty => 
         new(new T[InitialSize], InitialSize >> 1, 0);
+
+    public static RefSeq<T> EmptyNoCons =>
+        new(new T[InitialSize >> 1], 0, 0);
+
+    public static RefSeq<T> EmptyNoAdd =>
+        new(new T[InitialSize >> 1], InitialSize >> 1, 0);
     
     public T this[int offset] =>
         offset < count
@@ -180,7 +181,9 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
     }
 
     public static RefSeq<T> create(Span<T> values) =>
-        new(values, 0, values.Length);
+        values.Length <= 0
+            ? Empty
+            : new(values, 0, values.Length);
 
     public static RefSeq<T> create(Span<T> values, int start, int count) =>
         start + count <= values.Length 

@@ -5,7 +5,7 @@ namespace StackParsecPrototype;
 
 public readonly ref struct Stack
 {
-    readonly ObjSeq objects;
+    readonly RefSeq<object?> objects;
     readonly Span<byte> memory;
     readonly int top;
     readonly int bottom;
@@ -16,13 +16,13 @@ public readonly ref struct Stack
     public Stack(Span<byte> memory)
     {
         this.memory = memory;
-        this.objects = ObjSeq.EmptyNoCons;
+        this.objects = RefSeq<object?>.EmptyNoCons;
         this.top = 0;
         this.bottom = 0;
         this.count = memory.Length;
     }
 
-    Stack(ObjSeq objects, Span<byte> memory, int top, int bottom, int count)
+    Stack(RefSeq<object?> objects, Span<byte> memory, int top, int bottom, int count)
     {
         this.objects = objects;
         this.memory = memory;
