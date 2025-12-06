@@ -44,25 +44,21 @@ public static class Parsec<E, T>
     
     public static Parsec<E, T, ReadOnlySpan<T>> take(uint amount) =>
         new (Bytes.singleton(OpCode.TakeN).AddUInt32(amount), default);
+    
+    public static Parsec<E, T, T> token(T token) =>
+        new (Bytes.singleton(OpCode.Token), Stack.singleton(token));
 
     public static Parsec<E, T, A> pure<A>(A value) 
         where A : allows ref struct =>
         new (Bytes.singleton(OpCode.Pure).Add((byte)0), Stack.singleton(value));
 
-    public static Parsec<E, T, A> flatten<A>(Parsec<E, T, Parsec<E, T, A>> mma)
+    public static Parsec<E, T, B> bind<A, B>(Parsec<E, T, A> ma, Func<A, Parsec<E, T, B>> f)
         where A : allows ref struct
-    {
-        var mma1 = mma.Map(p => p.Core);
-        return new(mma1.Instructions.Add((byte)OpCode.Flatten), mma1.Constants);
-    }
-
-    public static Parsec<E, T, B> bind<A, B>(Parsec<E, T, A> ma, Func<A, Parsec<E, T, B>> f) 
-        where A : allows ref struct 
         where B : allows ref struct =>
-        flatten(ma.Map(f));
+        ma.Bind(f);
     
     public static Parsec<E, T, C> selectMany<A, B, C>(Parsec<E, T, A> ma, Func<A, Parsec<E, T, B>> bind, Func<A, B, C> project) 
         where B : allows ref struct 
         where C : allows ref struct =>
-        ma.Bind(a => bind(a).Map(b => project(a, b)));
+        ma.SelectMany(bind, project);
 }

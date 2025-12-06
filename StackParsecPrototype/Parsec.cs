@@ -116,29 +116,55 @@ public readonly ref struct Parsec<E, T, A>
             {
                 case OpCode.Pure:
                     // Read the pure constant and push it onto the stack.
-                    stack = stack.ReadFromAndPush(constants, instructions[pc++]);
+                    stack = stack.ReadFromAndPush(constants, instructions[pc++])
+                                 .Push(StackReply.OK);
                     break;
 
+                case OpCode.Token:
+                    //if (ProcessTaken(ref state, ref stack, ref taken)) return taken;
+                    throw new NotImplementedException();
+                    break;
+                
                 case OpCode.Invoke:
-                    if (ProcessInvoke(instructions, constants, ref stack, ref pc)) return taken;
+                    ProcessInvoke(instructions, constants, ref stack, ref pc);
                     break;
 
                 case OpCode.InvokeM:
-                    if (ProcessInvokeM(instructions, constants, ref state, ref stack, ref pc, ref taken)) return taken;
+                    ProcessInvokeM(instructions, constants, ref state, ref stack, ref pc, ref taken);
                     break;
 
                 case OpCode.Take1:
-                    if (ProcessTaken(ref state, ref stack, ref taken)) return taken;
+                    ProcessTake1(ref state, ref stack, ref taken);
                     break;
 
                 case OpCode.TakeN:
-                    if (ProcessTakeN(instructions, ref state, ref stack, ref pc, ref taken)) return taken;
+                    ProcessTakeN(instructions, ref state, ref stack, ref pc, ref taken);
                     break;
             }
+            
+            if (stack.Peek<StackReply>(out var reply))
+            {
+                switch (reply)
+                {
+                    case StackReply.OK:
+                        // Remove the OK from the stack, leaving just the success value
+                        stack = stack.Pop();
+                        break;
+
+                    default:
+                        // We've got a failure, so we early-out with the failure value remaining on the stack
+                        return taken;
+                }
+            }
+            else
+            {
+                throw new Exception("Invoke: expected StackReply");
+            }
+            
         }
     }
 
-    static bool ProcessTakeN(Bytes instructions, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessTakeN(Bytes instructions, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         var offset = state.Position.Offset;
         var n      = BitConverter.ToInt32(instructions.Slice(pc, 4).Span());
@@ -147,58 +173,39 @@ public readonly ref struct Parsec<E, T, A>
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
                          .Push(StackReply.ParseError);
-            return true;
         }
         else
         {
             var ts = state.Input.Slice(offset, n);
-            stack = stack.Push(ts);
+            stack = stack.Push(ts)
+                         .Push(StackReply.OK);
             state = state.Next(n);
             taken += n;
         }
-
-        return false;
     }
 
-    static bool ProcessTaken(ref State<T, E> state, ref Stack stack, ref int taken)
+    static void ProcessTake1(ref State<T, E> state, ref Stack stack, ref int taken)
     {
         var offset = state.Position.Offset;
         if (offset + 1 > state.Input.Length)
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
                          .Push(StackReply.ParseError);
-            return true;
         }
         else
         {
-            stack = stack.Push(state.Input[state.Position.Offset]);
+            stack = stack.Push(state.Input[state.Position.Offset])
+                         .Push(StackReply.OK);
             state = state.NextToken;
             taken++;
-            return false;
         }
     }
 
-    static bool ProcessInvoke(Bytes instructions, Stack constants, ref Stack stack, ref int pc)
+    static void ProcessInvoke(Bytes instructions, Stack constants, ref Stack stack, ref int pc)
     {
         if (constants.At<Func<Stack, Stack>>(instructions[pc++], out var f))
         {
             stack = f(stack);
-            if (stack.Peek<StackReply>(out var reply))
-            {
-                switch (reply)
-                {
-                    case StackReply.OK:
-                        stack = stack.Pop();
-                        return false;
-
-                    default:
-                        return true;
-                }
-            }
-            else
-            {
-                throw new Exception("Invoke: expected StackReply");
-            }
         }
         else
         {
@@ -206,7 +213,7 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static bool ProcessInvokeM(
+    static void ProcessInvokeM(
         Bytes instructions, 
         Stack constants, 
         ref State<T, E> state, 
@@ -233,46 +240,23 @@ public readonly ref struct Parsec<E, T, A>
                         // We expect a new parser to be on the top of the stack
                         if (stack.Peek<ParsecCore>(out var p))
                         {
-                            // We have a parser, so pop ti
+                            // We have a parser, so pop it
                             stack = stack.Pop();
                                         
                             // Run the parser
                             taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
-                                        
-                            // Get the result of running the parser
-                            if (stack.Peek<StackReply>(out var reply1))
-                            {
-                                switch (reply1)
-                                {
-                                    case StackReply.OK:
-                                        // The result was successful, so pop the OK off the stack
-                                        // that will leave just the success-value on the stack
-                                        stack = stack.Pop();
-                                        break;
-
-                                    default:
-                                        // The result was not successful, so we early-out with the 
-                                        // failure value remaining on the stack
-                                        return true;
-                                }
-                            }
-                            else
-                            {
-                                // If there isn't a StackReply on the stack, then we've got a bug
-                                throw new Exception("InvokeM: expected StackReply");
-                            }
+                            return;
                         }
                         else
                         {
                             // If there isn't a ParserCore on the stack, then we've got a bug
                             throw new Exception("InvokeM: expected ParsecCore");
                         }
-                        break;
                                  
                     default:
                         // The result of the invocation was not successful, so we early-out with the 
                         // failure value remaining on the stack
-                        return true;
+                        return;
                 }
             }
             else
@@ -287,7 +271,6 @@ public readonly ref struct Parsec<E, T, A>
             // If there isn't a Func in the constants, then we've got a bug
             throw new Exception("InvokeM: delegate not found");
         }
-        return false;
     }
 
     public Parsec<E, T, B> Select<B>(Func<A, B> f) =>
@@ -364,7 +347,7 @@ public readonly ref struct Parsec<E, T, A>
         var instrs = Instructions.Add((byte)OpCode.InvokeM)
                                  .Add((byte)constIx)
                                  .Add((byte)OpCode.Invoke)
-                                 .AddInt32((byte)constIx + 1);
+                                 .Add((byte)(constIx + 1));
 
         var constants = Constants.PushStackOp(go1)
                                  .PushStackOp(go2);
