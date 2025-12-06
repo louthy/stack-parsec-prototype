@@ -1,5 +1,6 @@
 ﻿using StackParsecPrototype;
-using static StackParsecPrototype.Parsec<LanguageExt.Common.Error, char>;
+using static StackParsecPrototype.Module<LanguageExt.Common.Error, char>;
+using static StackParsecPrototype.CharModule<LanguageExt.Common.Error>;
 
 Span<byte> stackMem = stackalloc byte[1024];
 
@@ -20,12 +21,18 @@ Span<byte> stackMem = stackalloc byte[1024];
 //          .Map(s => pure(s.Length))
 //          .Flatten();
 
-var p6 = from x in tokens("abc")
-         from y in tokens("xyz")
-         from z in tokens("abc")
-         select (x.ToString(), y.ToString(), z.ToString());
+// var p6 = from x in tokens("abc").Map(x1 => x1.ToString())
+//          from y in tokens("xyz").Map(y1 => y1.ToString())
+//          from z in tokens("abc").Map(z1 => z1.ToString())
+//          select $"({x}, {y}, {z})";
 
-var r = p6.Parse("abcxyzabc", stackMem);
+var p7 = from x in @string("abc")
+         from y in @string("xyz")
+         from z in @string("abc")
+         select $"({x}, {y}, {z})";
+
+
+var r = p7.Parse("abcxyzabc", stackMem);
 
 switch (r)
 {

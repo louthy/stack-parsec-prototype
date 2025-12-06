@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace StackParsecPrototype;
 
 public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
@@ -229,4 +231,7 @@ public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
 
     public ReadOnlySpan<T> Tokens => 
         values.Slice(start, count);
+
+    public override string ToString() =>
+        Span().ToString(); 
 }

@@ -3,7 +3,7 @@ using LanguageExt;
 
 namespace StackParsecPrototype;
 
-public static class Parsec<E, T>
+public static class Module<E, T>
     where T : IEqualityOperators<T, T, bool>    
 {
     public static Parsec<E, T, A> label<A>(string name, in Parsec<E, T, A> p)

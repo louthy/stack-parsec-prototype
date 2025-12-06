@@ -212,7 +212,7 @@ public readonly ref struct Parsec<E, T, A>
                     }
                 }
                 
-                stack = stack.Push(tokens)
+                stack = stack.Push(read)
                              .Push(StackReply.OK);
             }
         }
@@ -300,7 +300,8 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    public Parsec<E, T, B> Select<B>(Func<A, B> f) =>
+    public Parsec<E, T, B> Select<B>(Func<A, B> f) 
+        where B : allows ref struct =>
         Map(f);
     
     public Parsec<E, T, B> Map<B>(Func<A, B> f)
@@ -367,7 +368,7 @@ public readonly ref struct Parsec<E, T, A>
                 if (stack.Peek<A>(out var x))
                 {
                     // We don't pop the top stack value here as we need it for the project function
-                    var mb = f(x);
+                    var mb = f(x).Core;
                     return stack.Push(mb)
                                 .Push(StackReply.OK);
                 }
