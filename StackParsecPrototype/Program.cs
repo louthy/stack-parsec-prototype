@@ -44,7 +44,12 @@ var p10 = from x in satisfy(Char.IsLetter)
           from z in satisfy(Char.IsLetterOrDigit)
           select $"({x}, {y}, {z})";
 
-var r = p10.Parse("abcxyzabc", stackMem);
+var p11 = from x in oneOf(['a', 'b', 'c'])
+          from y in oneOf(['a', 'b', 'c'])
+          from z in oneOf(['a', 'b', 'c'])
+          select $"({x}, {y}, {z})";
+
+var r = p11.Parse("abcxyzabc", stackMem);
 
 switch (r)
 {

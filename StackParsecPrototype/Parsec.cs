@@ -151,6 +151,10 @@ public readonly ref struct Parsec<E, T, A>
                 case OpCode.Satisfy:
                     ProcessSatisfy(instructions, constants, ref state, ref stack, ref pc, ref taken);
                     break;
+
+                case OpCode.OneOf:
+                    ProcessOneOf(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    break;
             }
 
             var loop = true;
@@ -244,6 +248,46 @@ public readonly ref struct Parsec<E, T, A>
             throw new Exception("Tokens: span not found");
         }
     }
+    
+
+    static void ProcessOneOf(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    {
+        // Get the tokens
+        if (constants.At<ReadOnlySpan<T>>(instructions[pc++], out var tokens))
+        {
+            var start = state.Position.Offset;
+            var data  = state.Input.Slice(start, 1);
+            if (data.Length < 1)
+            {
+                stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
+                             .Push(StackReply.ParseError);
+                return;
+            }
+
+            var token = data[0];
+            foreach (var t in tokens)
+            {
+                if (t == token)
+                {
+                    // Success
+                    stack = stack.Push(token)
+                                 .Push(StackReply.OK);
+
+                    state = state.NextToken;
+                    taken++;
+                    return;
+                }
+            }
+
+            // Unexpected token
+            stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data))
+                         .Push(StackReply.ParseError);
+        }
+        else
+        {
+            throw new Exception("OneOf: span not found");
+        }
+    }    
 
     static void ProcessTakeN(Bytes instructions, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
@@ -270,7 +314,7 @@ public readonly ref struct Parsec<E, T, A>
         var start = state.Position.Offset;
         var count = 0;
         var data  = state.Input.Slice(start);
-        if (data.Length <= 0)
+        if (data.Length < 1)
         {
             stack = stack.Push(ReadOnlySpan<T>.Empty)
                          .Push(StackReply.OK);
@@ -306,7 +350,7 @@ public readonly ref struct Parsec<E, T, A>
         var start = state.Position.Offset;
         var count = 0;
         var data  = state.Input.Slice(start);
-        if (data.Length <= 0)
+        if (data.Length < 1)
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
                          .Push(StackReply.ParseError);
@@ -352,9 +396,8 @@ public readonly ref struct Parsec<E, T, A>
     static void ProcessSatisfy(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         var start = state.Position.Offset;
-        var count = 0;
-        var data  = state.Input.Slice(start);
-        if (data.Length <= 0)
+        var data  = state.Input.Slice(start, 1);
+        if (data.Length < 1)
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
                          .Push(StackReply.ParseError);
@@ -376,7 +419,7 @@ public readonly ref struct Parsec<E, T, A>
             else
             {
                 // Unexpected token
-                stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data.Slice(0, 1)))
+                stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data))
                              .Push(StackReply.ParseError);
             }
         }

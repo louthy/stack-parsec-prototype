@@ -54,6 +54,9 @@ public static class Module<E, T>
     public static Parsec<E, T, ReadOnlySpan<T>> tokens(ReadOnlySpan<T> tokens) =>
         new (Bytes.singleton(OpCode.Tokens).Add((byte)0), Stack.singleton(tokens));
 
+    public static Parsec<E, T, T> oneOf(ReadOnlySpan<T> tokens) =>
+        new (Bytes.singleton(OpCode.OneOf).Add((byte)0), Stack.singleton(tokens));
+
     public static Parsec<E, T, T> satisfy(Func<T, bool> test) =>
         new (Bytes.singleton(OpCode.Satisfy).Add((byte)0), Stack.singleton(test));
     
