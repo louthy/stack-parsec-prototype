@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackParsecPrototype", "StackParsecPrototype\StackParsecPrototype.csproj", "{E46BA3B9-22A1-459D-9758-FCBD0CA0791D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackParsecPrototype", "src/StackParsecPrototype.csproj", "{E46BA3B9-22A1-459D-9758-FCBD0CA0791D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
