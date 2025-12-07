@@ -56,3 +56,4 @@ nunit-*.xml
 # Rider
 /.idea
 /.idea/.idea.stack-parsec-prototype
+src/.idea/.idea.stack-parsec-prototype
