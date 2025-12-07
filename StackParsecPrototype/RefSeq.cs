@@ -2,6 +2,30 @@ using System.Runtime.CompilerServices;
 
 namespace StackParsecPrototype;
 
+/// <summary>
+/// A collection of values that's managed as a ref-struct (entirely on the heap).  It is backed by a Span&lt;T&gt;
+/// which you can provide yourself (so, you can stack allocate it). If you don't provide one, it will be allocated on
+/// the heap. The collection works like an lock-free immutable-type, even if behind the scenes there's mutational logic.
+///
+/// This type allows you to have a stack-allocated structure for the most common situations in your application (which
+/// you can tweak by providing your own stack-allocated `Span`); but for exceptional usage it doesn't fail, it simply
+/// falls back to the heap.  It makes this type exceptionally robust, but also exceptionally fast for the most common
+/// use-cases. 
+/// </summary>
+/// <remarks>
+/// If you 'branch' the collection by Adding or Consing from the same `RefSeq` struct, then a new clone will be created
+/// for the second operation. This preserves the immutability of the collection.
+/// </remarks>
+/// <remarks>
+/// If your Adding or Consing uses all the available space in the backing `Span`, then a new backing array will be
+/// allocated on the heap that is double the size. This continues as the collection grows.  That gives List&lt;T&gt;
+/// like performance and behaviour once the type falls back to a heap allocated backing span.
+/// </remarks>
+/// <remarks>
+/// Each new operation that returns a new `RefSeq` ref-struct will also allocate a `ConsAdd` type on the heap. I realise
+/// this goes against all of what's written above, but this type allows for the lock-free mutation of the backing span,
+/// in the most common use-case, and the cloning at other times.  It is 4 bytes in total, so shouldn't be a GC threat.
+/// </remarks>
 public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
 {
     const int InitialSize = 32;
