@@ -11,7 +11,7 @@ namespace StackParsecPrototype;
 public static class Module<E, T>
     where T : IEqualityOperators<T, T, bool>    
 {
-    public static Parsec<E, T, A> label<A>(string name, in Parsec<E, T, A> p)
+    public static Parsec<E, T, A> label<A>(string name, Parsec<E, T, A> p)
         where A : allows ref struct 
     {
         // We have a byte-code, so we can't have more than 255 objects in our parser.
@@ -27,15 +27,15 @@ public static class Module<E, T>
         return new Parsec<E, T, A>(instrs, objs);
     }
 
-    public static Parsec<E, T, A> error<A>(E error)  
+    public static Parsec<E, T, A> error<A>(ReadOnlySpan<E> errors)  
         where A : allows ref struct =>
-        new (Bytes.singleton(OpCode.Error).Add((byte)0), Stack.singleton(error));
+        new (Bytes.singleton(OpCode.Error).Add((byte)0), Stack.singleton(errors));
 
-    public static Parsec<E, T, A> @try<A>(in Parsec<E, T, A> p)  
+    public static Parsec<E, T, A> @try<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.Try), p.Constants);    
 
-    public static Parsec<E, T, A> choose<A>(in Parsec<E, T, A> p1, in Parsec<E, T, A> p2)  
+    public static Parsec<E, T, A> choose<A>(Parsec<E, T, A> p1, Parsec<E, T, A> p2)  
         where A : allows ref struct =>
         new (p1.Instructions
                .Add(OpCode.Or)
@@ -43,15 +43,15 @@ public static class Module<E, T>
                .Add(p2.Instructions.Span()), 
              p1.Constants.Append(p2.Constants));    
 
-    public static Parsec<E, T, A> lookAhead<A>(in Parsec<E, T, A> p)  
+    public static Parsec<E, T, A> lookAhead<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.LookAhead), p.Constants);    
 
-    public static Parsec<E, T, A> notFollowedBy<A>(in Parsec<E, T, A> p)  
+    public static Parsec<E, T, A> notFollowedBy<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.NotFollowedBy), p.Constants);
 
-    public static Parsec<E, T, A> observing<A>(in Parsec<E, T, A> p)  
+    public static Parsec<E, T, A> observing<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.Observing), p.Constants);
     
@@ -69,6 +69,9 @@ public static class Module<E, T>
     
     public static Parsec<E, T, ReadOnlySpan<T>> takeWhile1(Func<T, bool> predicate) =>
         new (Bytes.singleton(OpCode.TakeWhile1).Add((byte)0), Stack.singleton(predicate));
+
+    public static Parsec<E, T, T> token(T token) =>
+        new (Bytes.singleton(OpCode.Token).Add((byte)0), Stack.singleton(token));
 
     public static Parsec<E, T, ReadOnlySpan<T>> tokens(ReadOnlySpan<T> tokens) =>
         new (Bytes.singleton(OpCode.Tokens).Add((byte)0), Stack.singleton(tokens));

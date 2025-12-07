@@ -4,8 +4,8 @@ public enum OpCode : byte
 {
     Pure = 1,
     Error,
-    End,
     Or,
+    Token,
     Tokens,
     Invoke,
     InvokeM,

@@ -16,7 +16,7 @@ public static class ParsecExtensions
         where T : IEqualityOperators<T, T, bool>    
         where A : allows ref struct
     {
-        public static Parsec<E, T, A> operator |(in Parsec<E, T, A> lhs, in Parsec<E, T, A> rhs) =>
+        public static Parsec<E, T, A> operator |(Parsec<E, T, A> lhs, Parsec<E, T, A> rhs) =>
             Module<E, T>.choose(lhs, rhs);
     }
 }

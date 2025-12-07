@@ -1,4 +1,5 @@
-﻿using StackParsecPrototype;
+﻿using LanguageExt.Common;
+using StackParsecPrototype;
 using static StackParsecPrototype.Module<LanguageExt.Common.Error, char>;
 using static StackParsecPrototype.CharModule<LanguageExt.Common.Error>;
 
@@ -52,9 +53,13 @@ var p11 = from x in oneOf(['a', 'b', 'c'])
           from _ in oneOf(['a', 'b', 'c'])
           select $"({x}, {y}, {z})";
 
-var p12 = oneOf(['a', 'b', 'c']) | oneOf(['x', 'y', 'z']);
+var p12 = from x in token('a') | token('x')
+          from y in token('b') | token('y')
+          select (x, y);
 
-var r = p12.Parse("abcxyzabc", stackMem);
+var p13 = error<int>([Errors.SequenceEmpty]) | pure(1);
+
+var r = p13.Parse("abcxyzabc", stackMem);
 
 switch (r)
 {
