@@ -163,8 +163,18 @@ public readonly ref struct Parsec<E, T, A>
                                 // We have a parser, so pop it
                                 stack = stack.Pop();
 
-                                // Run the parser
-                                taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
+                                // No more instructions? (i.e. do we have a tail call?)
+                                if (pc >= instructions.Count)
+                                {
+                                    instructions = p.Instructions;
+                                    constants = p.Constants;
+                                    pc = 0;
+                                }
+                                else
+                                {
+                                    // Run the parser
+                                    taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
+                                }
                             }
                             else
                             {
