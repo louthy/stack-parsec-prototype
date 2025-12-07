@@ -21,7 +21,7 @@ public readonly ref struct Parsec<E, T, A>
     internal Parsec(Bytes instructions, Stack constants) : 
         this(new ParsecCore(instructions, constants)) { }
 
-    public ParserResult<E, T, A> Parse(ReadOnlySpan<T> stream, Span<byte> stackMem, string sourceName = "<unknown source>")
+    public ParserResult<E, T, A> Parse(ReadOnlySpan<T> stream, Span<byte> stackMem, string sourceName = "")
     {
         var stack        = new Stack(stackMem);
         var instructions = Instructions;
@@ -140,6 +140,10 @@ public readonly ref struct Parsec<E, T, A>
                     ProcessTakeN(instructions, ref state, ref stack, ref pc, ref taken);
                     break;
 
+                case OpCode.TakeWhile1:
+                    ProcessTakeWhile1(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    break;
+
                 case OpCode.TakeWhile:
                     ProcessTakeWhile(instructions, constants, ref state, ref stack, ref pc, ref taken);
                     break;
@@ -169,6 +173,7 @@ public readonly ref struct Parsec<E, T, A>
                                     instructions = p.Instructions;
                                     constants = p.Constants;
                                     pc = 0;
+                                    loop = false;
                                 }
                                 else
                                 {
@@ -265,6 +270,7 @@ public readonly ref struct Parsec<E, T, A>
         {
             stack = stack.Push(ReadOnlySpan<T>.Empty)
                          .Push(StackReply.OK);
+            return;
         }
         
         if (constants.At<Func<T, bool>>(instructions[pc++], out var predicate))
@@ -275,7 +281,7 @@ public readonly ref struct Parsec<E, T, A>
                 {
                     state = state.Next(count);
                     taken += count;
-                    stack = stack.Push(state.Input.Slice(start, count))
+                    stack = stack.Push(data.Slice(0, count))
                                  .Push(StackReply.OK);
                     return;
                 }
@@ -288,6 +294,54 @@ public readonly ref struct Parsec<E, T, A>
         else
         {
             throw new Exception("TakeWhile: predicate not found");
+        }
+    }
+
+    static void ProcessTakeWhile1(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    {
+        var start = state.Position.Offset;
+        var count = 0;
+        var data  = state.Input.Slice(start);
+        if (data.Length <= 0)
+        {
+            stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
+                         .Push(StackReply.ParseError);
+            return;
+        }
+        
+        if (constants.At<Func<T, bool>>(instructions[pc++], out var predicate))
+        {
+            while (true)
+            {
+                if (count >= state.Input.Length || !predicate(data[count]))
+                {
+                    state = state.Next(count);
+                    taken += count;
+
+                    if (count == 0)
+                    {
+                        // Unexpected token
+                        stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data.Slice(0, 1)))
+                                     .Push(StackReply.ParseError);
+                    }
+                    else
+                    {
+                        // Success
+                        stack = stack.Push(data.Slice(0, count))
+                                     .Push(StackReply.OK);
+                    }
+
+                    return;
+                }
+                else
+                {
+                    count++;
+                }
+            }
+        }
+        else
+        {
+            throw new Exception("TakeWhile1: predicate not found");
         }
     }
 

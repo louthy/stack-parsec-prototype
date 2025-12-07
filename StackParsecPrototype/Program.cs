@@ -37,7 +37,10 @@ var p6 = from x in tokens("abc").Map(x1 => x1.ToString())
 
 var p8 = takeWhile(x => x is 'a' or 'b' or 'c');
 
-var r = p7.Parse("abcxyzabc", stackMem);
+var p9 = takeWhile1(x => x is 'x' or 'y' or 'z');
+
+
+var r = p9.Parse("abcxyzabc", stackMem);
 
 switch (r)
 {
@@ -46,7 +49,7 @@ switch (r)
         break;
     
     default:
-        Console.WriteLine(r.Errors.ToString());
+        Console.WriteLine(string.Concat(r.ErrorDisplay));
         break;    
 }
 

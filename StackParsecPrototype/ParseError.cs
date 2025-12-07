@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Text;
+using LanguageExt.Common;
 
 namespace StackParsecPrototype;
 
@@ -209,4 +211,79 @@ public readonly struct ParseError<T, E> :
 
     public static bool operator !=(ParseError<T, E> left, ParseError<T, E> right) =>
         left.Position != right.Position;
+
+    internal void CollectErrorDisplay(List<string> texts)
+    {
+        var sb = new StringBuilder();
+        if (CustomErrors.Length > 0)
+        {
+            foreach (var ce in CustomErrors)
+            {
+                sb.Append(Position);
+                sb.Append(" ");
+                sb.AppendLine(ce?.ToString() ?? "<no error display text>");
+            }
+            texts.Add(sb.ToString());
+            return;
+        }
+
+        if(UnexpectedLabels.Length > 0)
+        {
+            sb.Clear();
+            sb.Append(Position);
+            sb.Append(" unexpected ");
+            sb.AppendLine(string.Join(", ", UnexpectedLabels));
+            texts.Add(sb.ToString());
+        }
+
+        if (UnexpectedTokens.Length > 0)
+        {
+            sb.Clear();
+            sb.Append(Position);
+            sb.Append(" unexpected ");
+            sb.AppendLine(string.Join(", ", UnexpectedTokens));
+            texts.Add(sb.ToString());
+        }
+
+        if(ExpectedLabels.Length > 0)
+        {
+            sb.Clear();
+            sb.Append(Position);
+            sb.Append(" expected ");
+            sb.AppendLine(string.Join(", ", ExpectedLabels));
+            texts.Add(sb.ToString());
+        }
+
+        if (ExpectedTokens.Length > 0)
+        {
+            sb.Clear();
+            sb.Append(Position);
+            sb.Append(" expected ");
+            sb.AppendLine(string.Join(", ", ExpectedTokens));
+            texts.Add(sb.ToString());
+        }
+
+        if ((EndOfInput & 1) == 1)
+        {
+            sb.Clear();
+            sb.Append(Position);
+            sb.AppendLine(" expected end of input");
+            texts.Add(sb.ToString());
+        }
+
+        if ((EndOfInput & 2) == 2)
+        {
+            sb.Clear();
+            sb.Append(Position);
+            sb.AppendLine(" unexpected end of input");
+            texts.Add(sb.ToString());
+        }
+    }
+
+    public override string ToString()
+    {
+        List<string> ts = [];
+        CollectErrorDisplay(ts);
+        return string.Concat(ts);
+    }    
 }

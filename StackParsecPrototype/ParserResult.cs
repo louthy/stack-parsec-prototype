@@ -60,7 +60,20 @@ public readonly ref struct ParserResult<E, T, A>
         Failed
             ? state.ParseErrors.Span()
             : ReadOnlySpan<ParseError<T, E>>.Empty;
-    
+
+    public IEnumerable<string> ErrorDisplay =>
+        GetErrorDisplay(Errors);
+
+    static IEnumerable<string> GetErrorDisplay(ReadOnlySpan<ParseError<T, E>> errors)
+    {
+        List<string> texts = [];
+        foreach (var error in errors)
+        {
+            error.CollectErrorDisplay(texts);
+        }
+        return texts;
+    }
+
     internal ParserResult(int flags, State<T, E> state, A? value)
     {
         this.flags = flags;
