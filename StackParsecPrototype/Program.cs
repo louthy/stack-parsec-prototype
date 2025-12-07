@@ -25,9 +25,9 @@ var p5 = pure("testing")
           .Map(s => pure(s.Length))
           .Flatten();
 
-var p6 = from x in tokens("abc").Map(x1 => x1.ToString())
-         from y in tokens("xyz").Map(y1 => y1.ToString())
-         from z in tokens("abc").Map(z1 => z1.ToString())
+var p6 = from x in asString(tokens("abc"))
+         from y in asString(tokens("xyz"))
+         from z in asString(tokens("abc"))
          select $"({x}, {y}, {z})";
 
  var p7 = from x in @string("abc")
@@ -47,6 +47,7 @@ var p10 = from x in satisfy(Char.IsLetter)
 var p11 = from x in oneOf(['a', 'b', 'c'])
           from y in oneOf(['a', 'b', 'c'])
           from z in oneOf(['a', 'b', 'c'])
+          from _ in oneOf(['a', 'b', 'c'])
           select $"({x}, {y}, {z})";
 
 var r = p11.Parse("abcxyzabc", stackMem);

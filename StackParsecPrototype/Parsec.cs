@@ -280,7 +280,7 @@ public readonly ref struct Parsec<E, T, A>
             }
 
             // Unexpected token
-            stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data))
+            stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data, tokens))
                          .Push(StackReply.ParseError);
         }
         else
