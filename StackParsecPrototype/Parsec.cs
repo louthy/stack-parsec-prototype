@@ -3,6 +3,15 @@ using LanguageExt;
 
 namespace StackParsecPrototype;
 
+/// <summary>
+/// Parser combinator ref-struct
+/// </summary>
+/// <remarks>
+/// This runs an internal byte-code to process the parsing steps against a `ReadOnlySpan` of tokens.
+/// </remarks>
+/// <typeparam name="E">Error type</typeparam>
+/// <typeparam name="T">Token type</typeparam>
+/// <typeparam name="A">Parsed value type</typeparam>
 public readonly ref struct Parsec<E, T, A>
     where T : IEqualityOperators<T, T, bool>
     where A : allows ref struct
@@ -166,6 +175,9 @@ public readonly ref struct Parsec<E, T, A>
                 case OpCode.Try:
                     ProcessTry(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
                     break;
+                
+                default:
+                    throw new NotImplementedException($"OpCode {(OpCode)instruction} not implemented");
             }
 
             var loop = true;

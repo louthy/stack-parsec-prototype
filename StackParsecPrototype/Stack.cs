@@ -3,6 +3,15 @@ using System.Runtime.InteropServices;
 
 namespace StackParsecPrototype;
 
+/// <summary>
+/// This is a stack that can store either objects, values, or even ref-struct references.  It works like
+/// the other collection-types in that it can start off with stack-allocated backing spans, but if it needs
+/// to grow to facilitate a more complex scenario then it will double its storage by allocating new backing
+/// spans on the heap.
+///
+/// That gives this type extreme performance for common use-cases, but also a Get Out of Jail Free card for
+/// more complex use-cases.  
+/// </summary>
 public readonly ref struct Stack
 {
     readonly RefSeq<object?> objects;

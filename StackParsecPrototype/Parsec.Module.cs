@@ -3,6 +3,11 @@ using LanguageExt;
 
 namespace StackParsecPrototype;
 
+/// <summary>
+/// Core primitive parsers
+/// </summary>
+/// <typeparam name="E">Error type</typeparam>
+/// <typeparam name="T">Token type</typeparam>
 public static class Module<E, T>
     where T : IEqualityOperators<T, T, bool>    
 {

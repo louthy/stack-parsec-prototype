@@ -1,5 +1,9 @@
 namespace StackParsecPrototype;
 
+/// <summary>
+/// Operations specific to character parsers
+/// </summary>
+/// <typeparam name="E">Error type</typeparam>
 public static class CharModule<E>
 {
     public static Parsec<E, char, string> @string(ReadOnlySpan<char> tokens) =>
