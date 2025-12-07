@@ -248,7 +248,6 @@ public readonly ref struct Parsec<E, T, A>
             throw new Exception("Tokens: span not found");
         }
     }
-    
 
     static void ProcessOneOf(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
@@ -282,6 +281,45 @@ public readonly ref struct Parsec<E, T, A>
             // Unexpected token
             stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data, tokens))
                          .Push(StackReply.ParseError);
+        }
+        else
+        {
+            throw new Exception("OneOf: span not found");
+        }
+    }    
+
+    static void ProcessNoneOf(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    {
+        // Get the tokens
+        if (constants.At<ReadOnlySpan<T>>(instructions[pc++], out var tokens))
+        {
+            var start = state.Position.Offset;
+            var data  = state.Input.Slice(start, 1);
+            if (data.Length < 1)
+            {
+                stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
+                             .Push(StackReply.ParseError);
+                return;
+            }
+
+            var token = data[0];
+            foreach (var t in tokens)
+            {
+                if (t == token)
+                {
+                    // Unexpected token
+                    stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data))
+                                 .Push(StackReply.ParseError);
+                    return;
+                }
+            }
+
+            // Success
+            stack = stack.Push(token)
+                         .Push(StackReply.OK);
+
+            state = state.NextToken;
+            taken++;
         }
         else
         {

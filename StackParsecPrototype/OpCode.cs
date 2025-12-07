@@ -13,6 +13,7 @@ public enum OpCode : byte
     TakeWhile,
     Satisfy,
     OneOf,
+    NoneOf,
     
     Label,
     Try,
