@@ -11,6 +11,7 @@ public enum OpCode : byte
     TakeN,
     TakeWhile1,
     TakeWhile,
+    Satisfy,
     
     Label,
     Try,

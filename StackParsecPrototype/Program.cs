@@ -39,8 +39,12 @@ var p8 = takeWhile(x => x is 'a' or 'b' or 'c');
 
 var p9 = takeWhile1(x => x is 'x' or 'y' or 'z');
 
+var p10 = from x in satisfy(Char.IsLetter)
+          from y in satisfy(Char.IsLower)
+          from z in satisfy(Char.IsLetterOrDigit)
+          select $"({x}, {y}, {z})";
 
-var r = p9.Parse("abcxyzabc", stackMem);
+var r = p10.Parse("abcxyzabc", stackMem);
 
 switch (r)
 {

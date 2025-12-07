@@ -147,6 +147,10 @@ public readonly ref struct Parsec<E, T, A>
                 case OpCode.TakeWhile:
                     ProcessTakeWhile(instructions, constants, ref state, ref stack, ref pc, ref taken);
                     break;
+
+                case OpCode.Satisfy:
+                    ProcessSatisfy(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    break;
             }
 
             var loop = true;
@@ -344,6 +348,43 @@ public readonly ref struct Parsec<E, T, A>
             throw new Exception("TakeWhile1: predicate not found");
         }
     }
+
+    static void ProcessSatisfy(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    {
+        var start = state.Position.Offset;
+        var count = 0;
+        var data  = state.Input.Slice(start);
+        if (data.Length <= 0)
+        {
+            stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
+                         .Push(StackReply.ParseError);
+            return;
+        }
+        
+        if (constants.At<Func<T, bool>>(instructions[pc++], out var predicate))
+        {
+            var token = data[0];
+            if (predicate(token))
+            {
+                // Success
+                stack = stack.Push(token)
+                             .Push(StackReply.OK);
+
+                state = state.NextToken;
+                taken ++;
+            }
+            else
+            {
+                // Unexpected token
+                stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data.Slice(0, 1)))
+                             .Push(StackReply.ParseError);
+            }
+        }
+        else
+        {
+            throw new Exception("Satisfy: predicate not found");
+        }
+    }    
 
     static void ProcessTake1(ref State<T, E> state, ref Stack stack, ref int taken)
     {
