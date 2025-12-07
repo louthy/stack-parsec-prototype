@@ -7,6 +7,7 @@ public static class Module<E, T>
     where T : IEqualityOperators<T, T, bool>    
 {
     public static Parsec<E, T, A> label<A>(string name, in Parsec<E, T, A> p)
+        where A : allows ref struct 
     {
         // We have a byte-code, so we can't have more than 255 objects in our parser.
         var constIx = p.Constants.Count;
@@ -21,19 +22,32 @@ public static class Module<E, T>
         return new Parsec<E, T, A>(instrs, objs);
     }
 
-    public static Parsec<E, T, A> error<A>(E error) => 
+    public static Parsec<E, T, A> error<A>(E error)  
+        where A : allows ref struct =>
         new (Bytes.singleton(OpCode.Error).Add((byte)0), Stack.singleton(error));
 
-    public static Parsec<E, T, A> @try<A>(in Parsec<E, T, A> p) => 
+    public static Parsec<E, T, A> @try<A>(in Parsec<E, T, A> p)  
+        where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.Try), p.Constants);    
 
-    public static Parsec<E, T, A> lookAhead<A>(in Parsec<E, T, A> p) => 
+    public static Parsec<E, T, A> choose<A>(in Parsec<E, T, A> p1, in Parsec<E, T, A> p2)  
+        where A : allows ref struct =>
+        new (p1.Instructions
+               .Add(OpCode.Or)
+               .AddInt32(p1.Constants.Count)
+               .Add(p2.Instructions.Span()), 
+             p1.Constants.Append(p2.Constants));    
+
+    public static Parsec<E, T, A> lookAhead<A>(in Parsec<E, T, A> p)  
+        where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.LookAhead), p.Constants);    
 
-    public static Parsec<E, T, A> notFollowedBy<A>(in Parsec<E, T, A> p) => 
+    public static Parsec<E, T, A> notFollowedBy<A>(in Parsec<E, T, A> p)  
+        where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.NotFollowedBy), p.Constants);
 
-    public static Parsec<E, T, A> observing<A>(in Parsec<E, T, A> p) => 
+    public static Parsec<E, T, A> observing<A>(in Parsec<E, T, A> p)  
+        where A : allows ref struct =>
         new (p.Instructions.Cons(OpCode.Observing), p.Constants);
     
     public static Parsec<E, T, Unit> eof =>
@@ -60,7 +74,7 @@ public static class Module<E, T>
     public static Parsec<E, T, T> noneOf(ReadOnlySpan<T> tokens) =>
         new (Bytes.singleton(OpCode.NoneOf).Add((byte)0), Stack.singleton(tokens));
 
-    public static Parsec<E, T, T> satisfy(Func<T, bool> test) =>
+    public static Parsec<E, T, T> satisfy(Func<T, bool> test) => 
         new (Bytes.singleton(OpCode.Satisfy).Add((byte)0), Stack.singleton(test));
     
     public static Parsec<E, T, A> pure<A>(A value) 

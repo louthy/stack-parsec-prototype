@@ -3,5 +3,6 @@ namespace StackParsecPrototype;
 public enum StackReply
 {
     OK,
-    ParseError
+    EmptyError,
+    ConsumedError
 }

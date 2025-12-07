@@ -333,4 +333,40 @@ public readonly ref struct Stack
                 throw new InvalidOperationException("Stack corrupted");
         }        
     }
+
+    public Stack Append(Stack other)
+    {
+        if (!other.Initialised) return this;
+        if (!Initialised) return other;
+
+        var stack = Expand(other.top + other.bottom);
+
+        // Copy other's top section to this stack's top section
+        var otherTop = other.memory.Slice(0, other.top);
+        var thisTop = stack.memory.Slice(stack.top, other.top);
+        otherTop.CopyTo(thisTop);
+
+        // Copy other's bottom section to this stack's bottom section
+        //var otherBottom = other.memory.Slice(other.count - other.bottom, other.bottom);
+        //var thisBottom = stack.memory.Slice(stack.count - stack.bottom - other.bottom, other.bottom);
+        //otherBottom.CopyTo(thisBottom);
+        for (var i = 4; i <= other.bottom; i+=4)
+        {
+            // Get the other index value and offset it by this stack's top value to
+            // make sure we're pointing at the right item
+            var othix = other.memory.Slice(other.count       - i, 4);
+            var newix = stack.memory.Slice(stack.count - stack.bottom - i, 4);
+            var ix    = BitConverter.ToInt32(othix) + stack.top;
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(newix), ix);
+        }
+
+        // Merge the object sequences
+        var newObjects = stack.objects;
+        for (var i = 0; i < other.objects.Count; i++)
+        {
+            newObjects = newObjects.Add(other.objects[i]);
+        }
+
+        return new Stack(newObjects, stack.memory, stack.top + other.top, stack.bottom + other.bottom, stack.count);
+    }
 }

@@ -12,6 +12,7 @@ public readonly ref struct ParseErrorRef<T, E>
     readonly ReadOnlySpan<T> ExpectedTokens;
     readonly ReadOnlySpan<string> ExpectedLabels;
     readonly byte EndOfInput;
+    readonly byte HasBeenInitialised;
 
     ParseErrorRef(
         SourcePosRef position,
@@ -29,6 +30,7 @@ public readonly ref struct ParseErrorRef<T, E>
         ExpectedTokens = expectedTokens;
         ExpectedLabels = expectedLabels;
         EndOfInput = endOfInput;
+        HasBeenInitialised = 1;
     }
 
     ParseErrorRef(
@@ -43,6 +45,7 @@ public readonly ref struct ParseErrorRef<T, E>
         ExpectedTokens = expectedTokens;
         ExpectedLabels = ReadOnlySpan<string>.Empty;
         EndOfInput = 0;
+        HasBeenInitialised = 1;
     }
 
     ParseErrorRef(
@@ -57,6 +60,7 @@ public readonly ref struct ParseErrorRef<T, E>
         ExpectedTokens = ReadOnlySpan<T>.Empty;
         ExpectedLabels = expectedLabels;
         EndOfInput = 0;
+        HasBeenInitialised = 1;
     }
 
     ParseErrorRef(
@@ -70,6 +74,7 @@ public readonly ref struct ParseErrorRef<T, E>
         ExpectedTokens = ReadOnlySpan<T>.Empty;
         ExpectedLabels = ReadOnlySpan<string>.Empty;
         EndOfInput = endOfInput;
+        HasBeenInitialised = 1;
     }
 
     ParseErrorRef(
@@ -83,6 +88,7 @@ public readonly ref struct ParseErrorRef<T, E>
         ExpectedTokens = ReadOnlySpan<T>.Empty;
         ExpectedLabels = ReadOnlySpan<string>.Empty;
         EndOfInput = 0;
+        HasBeenInitialised = 1;
     }
 
     public ParseError<T, E> UnRef() =>
@@ -111,6 +117,9 @@ public readonly ref struct ParseErrorRef<T, E>
     
     public ParseErrorRef<T, E> Combine(ParseErrorRef<T, E> rhs)
     {
+        if (rhs.HasBeenInitialised == 0) return this;
+        if (HasBeenInitialised == 0) return rhs;
+        
         // Custom errors take precedence over everything else
         var ce1 = CustomErrors;
         var ce2 = rhs.CustomErrors;

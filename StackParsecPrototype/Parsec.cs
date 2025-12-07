@@ -28,12 +28,12 @@ public readonly ref struct Parsec<E, T, A>
         var constants    = Constants;
         var errors       = RefSeq<ParseError<T, E>>.Empty;
         var state        = new State<T, E>(stream, SourcePosRef.FromName(sourceName), errors);
-        return Parse(instructions, constants, state, stack);
+        return Parse(instructions, constants, 0, state, stack);
     }
 
-    static ParserResult<E, T, A> Parse(Bytes instructions, Stack constants, State<T, E> state, Stack stack)
+    static ParserResult<E, T, A> Parse(Bytes instructions, Stack constants, int constantOffset, State<T, E> state, Stack stack)
     {
-        var taken = ParseUntyped(instructions, constants, ref state, ref stack);
+        var taken = ParseUntyped(instructions, constants, constantOffset, ref state, ref stack);
 
         if(stack.Peek<StackReply>(out var reply))
         {
@@ -55,7 +55,8 @@ public readonly ref struct Parsec<E, T, A>
                     }
                 }
                 
-                case StackReply.ParseError:
+                case StackReply.EmptyError:
+                case StackReply.ConsumedError:
                     stack = stack.Pop();
                     if (stack.Peek<ParseErrorRef<T, E>>(out var err2))
                     {
@@ -95,11 +96,16 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static int ParseUntyped(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack)
+    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack)
     {
-        var pc     = 0;  // program counter
-        var taken  = 0;
-        
+        var pc = 0; // program counter
+        return ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
+    }
+
+    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc)
+    {
+        var collectedErrors = new ParseErrorRef<T, E>();
+        var taken           = 0;
         while(true)
         {
             // No more instructions?
@@ -116,20 +122,21 @@ public readonly ref struct Parsec<E, T, A>
             {
                 case OpCode.Pure:
                     // Read the pure constant and push it onto the stack.
-                    stack = stack.ReadFromAndPush(constants, instructions[pc++])
+                    stack = stack.ReadFromAndPush(constants, instructions[pc] + constantOffset)
                                  .Push(StackReply.OK);
+                    pc++;
                     break;
 
                 case OpCode.Tokens:
-                    ProcessTokens(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    ProcessTokens(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
                     break;
                 
                 case OpCode.Invoke:
-                    ProcessInvoke(instructions, constants, ref stack, ref pc);
+                    ProcessInvoke(instructions, constants, constantOffset, ref stack, ref pc);
                     break;
 
                 case OpCode.InvokeM:
-                    ProcessInvokeM(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    ProcessInvokeM(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
                     break;
 
                 case OpCode.Take1:
@@ -141,19 +148,23 @@ public readonly ref struct Parsec<E, T, A>
                     break;
 
                 case OpCode.TakeWhile1:
-                    ProcessTakeWhile1(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    ProcessTakeWhile1(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
                     break;
 
                 case OpCode.TakeWhile:
-                    ProcessTakeWhile(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    ProcessTakeWhile(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
                     break;
 
                 case OpCode.Satisfy:
-                    ProcessSatisfy(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    ProcessSatisfy(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
                     break;
 
                 case OpCode.OneOf:
-                    ProcessOneOf(instructions, constants, ref state, ref stack, ref pc, ref taken);
+                    ProcessOneOf(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    break;
+                
+                case OpCode.Try:
+                    ProcessTry(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
                     break;
             }
 
@@ -175,27 +186,75 @@ public readonly ref struct Parsec<E, T, A>
                                 // We have a parser, so pop it
                                 stack = stack.Pop();
 
-                                // No more instructions? (i.e. do we have a tail call?)
-                                if (pc >= instructions.Count)
+                                // Run the parser
+                                taken += ParseUntyped(p.Instructions, p.Constants, 0, ref state, ref stack);
+                                
+                                // No more instructions, or, look ahead, if there's an OR instruction,
+                                // then we're done, because we succeeded here.
+                                if (pc >= instructions.Count || instructions[pc] == (byte)OpCode.Or)
                                 {
-                                    instructions = p.Instructions;
-                                    constants = p.Constants;
-                                    pc = 0;
-                                    loop = false;
-                                }
-                                else
-                                {
-                                    // Run the parser
-                                    taken += ParseUntyped(p.Instructions, p.Constants, ref state, ref stack);
+                                    stack = stack.Push(StackReply.OK);
+                                    return taken;
                                 }
                             }
                             else
                             {
-                                // If there isn't a ParserCore on the stack, then exit the loop and keep
-                                // running the instructions.
-                                loop = false;
+                                // No more instructions, or, look ahead, if there's an OR instruction,
+                                // then we're done, because we succeeded here.
+                                if (pc >= instructions.Count || instructions[pc] == (byte)OpCode.Or)
+                                {
+                                    stack = stack.Push(StackReply.OK);
+                                    return taken;
+                                }
+                                else
+                                {
+                                    // If there isn't a ParserCore on the stack, then exit the loop and keep
+                                    // running the instructions.
+                                    loop = false;
+                                }
                             }
                             break;
+                        
+                        case StackReply.EmptyError:
+                            
+                            // No more instructions?
+                            if (pc >= instructions.Count)
+                            {
+                                return taken;
+                            }
+                            
+                            // Look ahead, we need an OR instruction to continue
+                            if (instructions[pc] == (byte)OpCode.Or)
+                            {
+                                // Skip the OR
+                                pc++;
+                                
+                                // Constants offset
+                                constantOffset += BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
+
+                                if (stack.Peek<ParseErrorRef<T, E>>(out var err))
+                                {
+                                    // Collect the error
+                                    collectedErrors = collectedErrors.Combine(err);
+                                    
+                                    // Pop the error off the stack
+                                    stack = stack.Pop();
+                                    
+                                    // Continue parsing
+                                    loop = false;
+                                    break;
+                                }
+                                else
+                                {
+                                    throw new Exception("Or: expected ParseErrorRef on the stack");
+                                }
+                            }
+                            else
+                            {
+                                // We've got a failure that hasn't been caught by an OR instruction, so we early-out
+                                // with the failure value remaining on the stack
+                                return taken;
+                            }
 
                         default:
                             // We've got a failure, so we early-out with the failure value remaining on the stack
@@ -210,16 +269,60 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static void ProcessTokens(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessTry(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    {
+        var savedState = state;
+        var consts     = constants;
+        var npc        = pc;
+        var ntaken     = ParseUntyped(instructions, consts, constantOffset, ref state, ref stack, ref npc);
+        if (ntaken == 0)
+        {
+            // Not consumed, so we don't care if it succeeded or not. Empty Ok and Empty Error are both fine.
+            return;
+        }
+        
+        if (stack.Peek<StackReply>(out var reply))
+        {
+            switch (reply)
+            {
+                case StackReply.OK:
+                    // Success, so we're done
+                    taken += ntaken;
+                    pc = npc;
+                    return;
+                
+                case StackReply.EmptyError:
+                    // Reset the state back to before we tried parsing
+                    state = savedState;
+                    break;
+                
+                case StackReply.ConsumedError:
+                    
+                    // Reset the state back to before we tried parsing
+                    state = savedState;
+                    
+                    // Return the error as-is but with 'empty error' status
+                    stack = stack.Pop().Push(StackReply.EmptyError);
+                    break;
+                    
+            }
+        }
+        else
+        {
+            throw new Exception("Try: expected StackReply");
+        }
+    }
+
+    static void ProcessTokens(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         // Get the tokens
-        if (constants.At<ReadOnlySpan<T>>(instructions[pc++], out var tokens))
+        if (constants.At<ReadOnlySpan<T>>(instructions[pc++] + constantOffset, out var tokens))
         {
             var offset = state.Position.Offset;
             if (offset + tokens.Length > state.Input.Length)
             {
                 stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                             .Push(StackReply.ParseError);
+                             .Push(StackReply.EmptyError);
             }
             else
             {
@@ -234,7 +337,7 @@ public readonly ref struct Parsec<E, T, A>
                     else
                     {
                         stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, read, tokens))
-                                     .Push(StackReply.ParseError);
+                                     .Push(StackReply.ConsumedError);
                         return;
                     }
                 }
@@ -249,17 +352,17 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static void ProcessOneOf(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessOneOf(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         // Get the tokens
-        if (constants.At<ReadOnlySpan<T>>(instructions[pc++], out var tokens))
+        if (constants.At<ReadOnlySpan<T>>(instructions[pc++] + constantOffset, out var tokens))
         {
             var start = state.Position.Offset;
             var data  = state.Input.Slice(start, 1);
             if (data.Length < 1)
             {
                 stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                             .Push(StackReply.ParseError);
+                             .Push(StackReply.EmptyError);
                 return;
             }
 
@@ -280,7 +383,7 @@ public readonly ref struct Parsec<E, T, A>
 
             // Unexpected token
             stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data, tokens))
-                         .Push(StackReply.ParseError);
+                         .Push(StackReply.EmptyError);
         }
         else
         {
@@ -288,17 +391,17 @@ public readonly ref struct Parsec<E, T, A>
         }
     }    
 
-    static void ProcessNoneOf(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessNoneOf(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         // Get the tokens
-        if (constants.At<ReadOnlySpan<T>>(instructions[pc++], out var tokens))
+        if (constants.At<ReadOnlySpan<T>>(instructions[pc++] + constantOffset, out var tokens))
         {
             var start = state.Position.Offset;
             var data  = state.Input.Slice(start, 1);
             if (data.Length < 1)
             {
                 stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                             .Push(StackReply.ParseError);
+                             .Push(StackReply.EmptyError);
                 return;
             }
 
@@ -309,7 +412,7 @@ public readonly ref struct Parsec<E, T, A>
                 {
                     // Unexpected token
                     stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data))
-                                 .Push(StackReply.ParseError);
+                                 .Push(StackReply.EmptyError);
                     return;
                 }
             }
@@ -335,7 +438,7 @@ public readonly ref struct Parsec<E, T, A>
         if (offset + n > state.Input.Length)
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                         .Push(StackReply.ParseError);
+                         .Push(StackReply.EmptyError);
         }
         else
         {
@@ -347,7 +450,7 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static void ProcessTakeWhile(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessTakeWhile(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         var start = state.Position.Offset;
         var count = 0;
@@ -359,7 +462,7 @@ public readonly ref struct Parsec<E, T, A>
             return;
         }
         
-        if (constants.At<Func<T, bool>>(instructions[pc++], out var predicate))
+        if (constants.At<Func<T, bool>>(instructions[pc++] + constantOffset, out var predicate))
         {
             while (true)
             {
@@ -383,7 +486,7 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static void ProcessTakeWhile1(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessTakeWhile1(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         var start = state.Position.Offset;
         var count = 0;
@@ -391,11 +494,11 @@ public readonly ref struct Parsec<E, T, A>
         if (data.Length < 1)
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                         .Push(StackReply.ParseError);
+                         .Push(StackReply.EmptyError);
             return;
         }
         
-        if (constants.At<Func<T, bool>>(instructions[pc++], out var predicate))
+        if (constants.At<Func<T, bool>>(instructions[pc++] + constantOffset, out var predicate))
         {
             while (true)
             {
@@ -408,7 +511,7 @@ public readonly ref struct Parsec<E, T, A>
                     {
                         // Unexpected token
                         stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data.Slice(0, 1)))
-                                     .Push(StackReply.ParseError);
+                                     .Push(StackReply.EmptyError);
                     }
                     else
                     {
@@ -431,18 +534,18 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static void ProcessSatisfy(Bytes instructions, Stack constants, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessSatisfy(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
     {
         var start = state.Position.Offset;
         var data  = state.Input.Slice(start, 1);
         if (data.Length < 1)
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                         .Push(StackReply.ParseError);
+                         .Push(StackReply.EmptyError);
             return;
         }
         
-        if (constants.At<Func<T, bool>>(instructions[pc++], out var predicate))
+        if (constants.At<Func<T, bool>>(instructions[pc++] + constantOffset, out var predicate))
         {
             var token = data[0];
             if (predicate(token))
@@ -458,7 +561,7 @@ public readonly ref struct Parsec<E, T, A>
             {
                 // Unexpected token
                 stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data))
-                             .Push(StackReply.ParseError);
+                             .Push(StackReply.EmptyError);
             }
         }
         else
@@ -473,7 +576,7 @@ public readonly ref struct Parsec<E, T, A>
         if (offset + 1 > state.Input.Length)
         {
             stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                         .Push(StackReply.ParseError);
+                         .Push(StackReply.EmptyError);
         }
         else
         {
@@ -484,13 +587,13 @@ public readonly ref struct Parsec<E, T, A>
         }
     }
 
-    static void ProcessInvoke(Bytes instructions, Stack constants, ref Stack stack, ref int pc)
+    static void ProcessInvoke(Bytes instructions, Stack constants, int constantOffset, ref Stack stack, ref int pc)
     {
         // Get the wrapper function
-        if (constants.At<Func<Stack, Stack, Stack>>(instructions[pc++], out var go))
+        if (constants.At<Func<Stack, Stack, Stack>>(instructions[pc++] + constantOffset, out var go))
         {
             // Read the function to invoke
-            stack = stack.ReadFromAndPush(constants, instructions[pc++]);
+            stack = stack.ReadFromAndPush(constants, instructions[pc++] + constantOffset);
             
             // Invoke the wrapper function that calls the real function
             stack = go(stack, constants);
@@ -504,16 +607,17 @@ public readonly ref struct Parsec<E, T, A>
     static void ProcessInvokeM(
         Bytes instructions, 
         Stack constants, 
+        int constantOffset,
         ref State<T, E> state, 
         ref Stack stack, 
         ref int pc,
         ref int taken)
     {
         // Get the delegate to invoke from the constants
-        if (constants.At<Func<Stack, Stack, Stack>>(instructions[pc++], out var go))
+        if (constants.At<Func<Stack, Stack, Stack>>(instructions[pc++] + constantOffset, out var go))
         {
             // Read the function to invoke
-            stack = stack.ReadFromAndPush(constants, instructions[pc++]);
+            stack = stack.ReadFromAndPush(constants, instructions[pc++] + constantOffset);
             
             // Invoke the delegate
             stack = go(stack, constants);
@@ -679,4 +783,7 @@ public readonly ref struct Parsec<E, T, A>
             }
         }
     }
+
+    public Parsec<E, T, A> Try() =>
+        new (Instructions.Cons(OpCode.Try), Constants);
 }

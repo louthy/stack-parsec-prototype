@@ -4,6 +4,8 @@ public enum OpCode : byte
 {
     Pure = 1,
     Error,
+    End,
+    Or,
     Tokens,
     Invoke,
     InvokeM,
@@ -14,9 +16,9 @@ public enum OpCode : byte
     Satisfy,
     OneOf,
     NoneOf,
+    Try,
     
     Label,
-    Try,
     LookAhead,
     NotFollowedBy,
     EOF,

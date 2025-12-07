@@ -4,6 +4,8 @@ using static StackParsecPrototype.CharModule<LanguageExt.Common.Error>;
 
 Span<byte> stackMem = stackalloc byte[1024];
 
+var p0 = pure(1) | pure(2) | pure(3);
+
 var p1 = pure("testing").Map(s => s.Length);
 
 var p2 = pure("testing").Bind(s => pure(s.Length));
@@ -50,7 +52,9 @@ var p11 = from x in oneOf(['a', 'b', 'c'])
           from _ in oneOf(['a', 'b', 'c'])
           select $"({x}, {y}, {z})";
 
-var r = p11.Parse("abcxyzabc", stackMem);
+var p12 = oneOf(['a', 'b', 'c']) | oneOf(['x', 'y', 'z']);
+
+var r = p12.Parse("abcxyzabc", stackMem);
 
 switch (r)
 {
