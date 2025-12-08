@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace StackParsecPrototype;
 
@@ -71,6 +72,7 @@ static partial class ParsecInternals<E, T, A>
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack)
     {
         var pc = 0; // program counter

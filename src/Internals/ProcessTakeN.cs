@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace StackParsecPrototype;
 
@@ -14,6 +15,7 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="stack">VM stack</param>
     /// <param name="pc">Program counter</param>
     /// <param name="taken">Tokens read, so far</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void ProcessTakeN(
         Bytes instructions, 
         ref State<T, E> state, 

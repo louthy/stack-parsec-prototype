@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace StackParsecPrototype;
 
 /// <summary>
@@ -33,6 +35,7 @@ public readonly ref struct Bytes
     readonly int count;
     readonly ConsAdd state;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal Bytes(Span<byte> values, int start, int count)
     {
         if(values.Length == 0) throw new ArgumentException("Cannot create a Bytes without a byte buffer with size > 0");
@@ -42,6 +45,7 @@ public readonly ref struct Bytes
         this.state = new ConsAdd(0, 0);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal Bytes(Span<byte> values)
     {
         if(values.Length == 0) throw new ArgumentException("Cannot create a Bytes without a byte buffer with size > 0");
@@ -51,20 +55,34 @@ public readonly ref struct Bytes
         this.state = new ConsAdd(0, 0);
     }
     
-    public bool Initialised =>
-        !values.IsEmpty;
-    
-    public int Count => 
-        count;
+    public bool Initialised
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => !values.IsEmpty;
+    }
 
-    public bool IsEmpty =>
-        count == 0;
-    
-    public byte this[int offset] =>
-        offset < count
-            ? values[start + offset]
-            : throw new IndexOutOfRangeException();
+    public int Count
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => count;
+    }
 
+    public bool IsEmpty
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => count == 0;
+    }
+
+
+    public byte this[int offset]
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => offset < count
+                   ? values[start + offset]
+                   : throw new IndexOutOfRangeException();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bytes Initialise(int size = InitialSize)
     {
         size--;
@@ -77,6 +95,7 @@ public readonly ref struct Bytes
         return new Bytes(new byte[size]);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes ExpandUp(int spaceNeeded)
     {
         if (!Initialised) return Initialise(spaceNeeded);
@@ -93,6 +112,7 @@ public readonly ref struct Bytes
         return new Bytes(nvalues, start, count);
     }    
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes ExpandDown(int spaceNeeded)
     {
         if (!Initialised) return Initialise(spaceNeeded);
@@ -110,6 +130,7 @@ public readonly ref struct Bytes
         return new Bytes(nvalues, nstart, count);
     }    
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes Clone()
     {
         if(!Initialised) return Initialise();
@@ -118,33 +139,41 @@ public readonly ref struct Bytes
         return new Bytes(nvalues, start, count);
     }
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes Slice(int start) =>
         Initialised
             ? new (values, this.start + Math.Min(start, count), count - Math.Min(start, count))
             : Initialise().Slice(start);
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes Slice(int start, int count) =>
         Initialised
             ? new (values, this.start + Math.Min(start, this.count), Math.Min(this.count - start, count))
             : Initialise().Slice(start, count);
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<byte> Span() =>
         Initialised
             ? values.Slice(start, count)
             : Initialise().Span();
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<byte> Span(int start) =>
         Slice(start).Span();
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<byte> Span(int start, int count) =>
         Slice(start, count).Span();
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes Add(OpCode opCode) =>
         Add((byte)opCode);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes Cons(OpCode opCode) =>
         Cons((byte)opCode);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes AddUInt32(uint value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -152,6 +181,7 @@ public readonly ref struct Bytes
         return Add(buffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes ConsUInt32(uint value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -159,6 +189,7 @@ public readonly ref struct Bytes
         return Cons(buffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes AddInt32(int value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -166,6 +197,7 @@ public readonly ref struct Bytes
         return Add(buffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes ConsInt32(int value)
     {
         Span<byte> buffer = stackalloc byte[4];
@@ -173,6 +205,7 @@ public readonly ref struct Bytes
         return Cons(buffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes AddUInt16(ushort value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -180,6 +213,7 @@ public readonly ref struct Bytes
         return Add(buffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes ConsUInt16(ushort value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -187,6 +221,7 @@ public readonly ref struct Bytes
         return Cons(buffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes AddInt16(short value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -194,6 +229,7 @@ public readonly ref struct Bytes
         return Add(buffer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes ConsInt16(short value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -201,6 +237,7 @@ public readonly ref struct Bytes
         return Cons(buffer);
     }
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes Add(params ReadOnlySpan<byte> valuesToAdd)
     {
         if(!Initialised) return Initialise(Math.Max(valuesToAdd.Length, InitialSize)).Add(valuesToAdd);
@@ -225,6 +262,7 @@ public readonly ref struct Bytes
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes Cons(params ReadOnlySpan<byte> valuesToCons)
     {
         if(!Initialised) return Initialise(Math.Max(valuesToCons.Length, InitialSize)).Add(valuesToCons);
@@ -247,13 +285,18 @@ public readonly ref struct Bytes
             return Clone().Cons(valuesToCons);
         }       
     }
-    
-    public static Bytes Empty => 
-        new(new byte[InitialSize], InitialSize >> 1, 0);
 
+    public static Bytes Empty
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => new(new byte[InitialSize], InitialSize >> 1, 0);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bytes singleton(OpCode value) =>
         singleton((byte)value);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bytes singleton(byte value)
     {
         Span<byte> mem = new byte[InitialSize];
@@ -261,9 +304,11 @@ public readonly ref struct Bytes
         return new Bytes(mem, InitialSize >> 1, 1);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bytes create(Span<byte> values) =>
         new(values, 0, values.Length);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Bytes create(Span<byte> values, int start, int count) =>
         start + count <= values.Length 
             ? new(values, start, count)
@@ -276,6 +321,7 @@ public readonly ref struct Bytes
         readonly int end;
         int current;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal Enumerator(Span<byte> values, int start, int count)
         {
             this.values = values;
@@ -284,19 +330,25 @@ public readonly ref struct Bytes
             current = start - 1;
         }
 
-        public byte Current => 
-            values[current];
+        public byte Current
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => values[current];
+        }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool MoveNext()
         {
             current++;
             return current < end;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Reset() =>
             current = start - 1;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Enumerator GetEnumerator() => 
         new (values, start, count);
 }

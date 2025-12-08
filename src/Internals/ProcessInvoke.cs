@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace StackParsecPrototype;
 
@@ -14,6 +15,7 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="constantOffset">Offset into the constants</param>
     /// <param name="stack">VM stack</param>
     /// <param name="pc">Program counter</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void ProcessInvoke(
         Bytes instructions, 
         Stack constants, 
