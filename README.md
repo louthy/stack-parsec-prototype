@@ -8,7 +8,7 @@ may have none, it may work, it may not.
 
 ## Concept
 
-Parser combinators in C# that leverage LINQ ([like Parsec and Megaparsec in language-ext](https://github.com/louthy/language-ext)) need to create lots of 
+Parser combinators in C# that leverage LINQ (like [Parsec](https://github.com/louthy/language-ext/tree/main/LanguageExt.Parsec) and [Megaparsec](https://github.com/louthy/language-ext/blob/v5-megaparsec/LanguageExt.Megaparsec) in [language-ext](https://github.com/louthy/language-ext)) need to create lots of 
 temporary heap-resident objects. This is an attempt to see how far I can push the `ref struct` idea to create 
 stack-resident parser-combinators.
 
