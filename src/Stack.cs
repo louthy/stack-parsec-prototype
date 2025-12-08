@@ -22,6 +22,7 @@ public readonly ref struct Stack
     const int headerSize = 8;
     const int defaultStackSize = 32;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Stack(Span<byte> memory)
     {
         this.memory = memory;
@@ -31,6 +32,7 @@ public readonly ref struct Stack
         this.count = memory.Length;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     Stack(RefSeq<object?> objects, Span<byte> memory, int top, int bottom, int count)
     {
         this.objects = objects;
@@ -40,19 +42,31 @@ public readonly ref struct Stack
         this.count = count;
     }
 
-    public static Stack Empty => 
-        new (new byte[defaultStackSize]);            // TODO: Decided on a good default and implement doubling
-    
+    public static Stack Empty
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+
+        get => new(new byte[defaultStackSize]); 
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Stack singleton<A>(A value) 
         where A : allows ref struct =>
         Empty.Push(value);
     
-    public int Count => 
-        bottom >> 2;
+    public int Count 
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => bottom >> 2;
+    }
 
-    public bool Initialised =>
-        count > 0;
+    public bool Initialised
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => count > 0;
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     Stack Initialise(int size = defaultStackSize)
     {
         size--;
@@ -65,6 +79,7 @@ public readonly ref struct Stack
         return new Stack(new byte[size]);
     }
     
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Stack Expand(int spaceNeeded)
     {
         if (!Initialised) return Initialise(spaceNeeded);
@@ -356,9 +371,6 @@ public readonly ref struct Stack
         otherTop.CopyTo(thisTop);
 
         // Copy other's bottom section to this stack's bottom section
-        //var otherBottom = other.memory.Slice(other.count - other.bottom, other.bottom);
-        //var thisBottom = stack.memory.Slice(stack.count - stack.bottom - other.bottom, other.bottom);
-        //otherBottom.CopyTo(thisBottom);
         for (var i = 4; i <= other.bottom; i+=4)
         {
             // Get the other index value and offset it by this stack's top value to
