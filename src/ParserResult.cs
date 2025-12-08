@@ -1,83 +1,100 @@
-using System.Numerics;
-
 namespace StackParsecPrototype;
 
 public static class ParserResult
 {
-    public static ParserResult<E, T, A> ConsumedOK<E, T, A>(A value, State<T, E> state)
-        where T : IEqualityOperators<T, T, bool>
-        where A : allows ref struct =>
-        new(1 /*OK*/ | 4 /*Consumed*/, state, value);
+    public static ParserResult<E, T, A> ConsumedOK<E, T, A>(A value, State<E, T> state) =>
+        new ParserResult<E, T, A>.ConsumedOK(value, state.Position.UnRef());
 
-    public static ParserResult<E, T, A> EmptyOK<E, T, A>(A value, State<T, E> state)
-        where T : IEqualityOperators<T, T, bool>
-        where A : allows ref struct =>
-        new(1 /*OK*/ | 8 /*Empty*/, state, value);
+    public static ParserResult<E, T, A> EmptyOK<E, T, A>(A value, State<E, T> state) =>
+        new ParserResult<E, T, A>.EmptyOK(value, state.Position.UnRef());
     
-    public static ParserResult<E, T, A> ConsumedErr<E, T, A>(ParseError<T, E> error, State<T, E> state)
-        where T : IEqualityOperators<T, T, bool>
-        where A : allows ref struct =>
-        new(2 /*Failed*/ | 4 /*Consumed*/, state.AddError(error), default);
+    public static ParserResult<E, T, A> ConsumedErr<E, T, A>(ParseError<E, T> error, State<E, T> state) =>
+        new ParserResult<E, T, A>.ConsumedErr(error, state.Position.UnRef());
 
-    public static ParserResult<E, T, A> EmptyErr<E, T, A>(ParseError<T, E> error, State<T, E> state)
-        where T : IEqualityOperators<T, T, bool>
-        where A : allows ref struct =>
-        new(2 /*Failed*/ | 8 /*Empty*/, state.AddError(error), default);
+    public static ParserResult<E, T, A> EmptyErr<E, T, A>(ParseError<E, T> error, State<E, T> state) =>
+        new ParserResult<E, T, A>.EmptyErr(error, state.Position.UnRef());
 }
 
-public readonly ref struct ParserResult<E, T, A>
-    where T : IEqualityOperators<T, T, bool>
-    where A : allows ref struct
+public abstract record ParserResult<E, T, A>(SourcePos Position)
 {
-    readonly int flags;
-    readonly State<T, E> state;
-    readonly A? value;
-
-    public bool Uninitialised =>
-        flags == 0;
+    /// <summary>
+    /// Successfully acquired a result
+    /// </summary>
+    public abstract bool Ok { get; }  
     
-    public bool Ok =>
-        (flags & 1) == 1;
-
-    public bool Failed =>
-        (flags & 2) == 2;
-
-    public bool Consumed =>
-        (flags & 4) == 4;
-
-    public bool Empty =>
-        (flags & 8) == 8;
-
-    public State<T, E> State => 
-        state;
+    /// <summary>
+    /// Failed to acquire a result
+    /// </summary>
+    public abstract bool Failed { get; }
     
-    public A Value =>
-        Ok && value is not null
-            ? value
-            : throw new InvalidOperationException("Cannot get value from failed result");
+    /// <summary>
+    /// Consumed some or all of the input
+    /// </summary>
+    public abstract bool Consumed { get; }
+    
+    /// <summary>
+    /// No input was consumed
+    /// </summary>
+    public abstract bool Empty { get; }
 
-    public ReadOnlySpan<ParseError<T, E>> Errors =>
-        Failed
-            ? state.ParseErrors.Span()
-            : ReadOnlySpan<ParseError<T, E>>.Empty;
-
-    public IEnumerable<string> ErrorDisplay =>
-        GetErrorDisplay(Errors);
-
-    static IEnumerable<string> GetErrorDisplay(ReadOnlySpan<ParseError<T, E>> errors)
+    public record ConsumedOK(A Value, SourcePos Position) : ParserResult<E, T, A>(Position)
     {
-        List<string> texts = [];
-        foreach (var error in errors)
-        {
-            error.CollectErrorDisplay(texts);
-        }
-        return texts;
+        public override bool Ok => 
+            true;
+
+        public override bool Failed =>
+            false;
+
+        public override bool Consumed =>
+            true;
+        
+        public override bool Empty =>
+            false;
     }
 
-    internal ParserResult(int flags, State<T, E> state, A? value)
+    public record EmptyOK(A Value, SourcePos Position) : ParserResult<E, T, A>(Position)
     {
-        this.flags = flags;
-        this.state = state;
-        this.value = value;
+        public override bool Ok => 
+            true;
+
+        public override bool Failed =>
+            false;
+
+        public override bool Consumed =>
+            false;
+        
+        public override bool Empty =>
+            true;
     }
+
+    public record ConsumedErr(ParseError<E, T> Value, SourcePos Position) : ParserResult<E, T, A>(Position)
+    {
+        public override bool Ok => 
+            false;
+
+        public override bool Failed =>
+            true;
+
+        public override bool Consumed =>
+            true;
+        
+        public override bool Empty =>
+            false;
+    }
+
+    public record EmptyErr(ParseError<E, T> Value, SourcePos Position) : ParserResult<E, T, A>(Position)
+    {
+        public override bool Ok => 
+            false;
+
+        public override bool Failed =>
+            true;
+
+        public override bool Consumed =>
+            false;
+        
+        public override bool Empty =>
+            true;
+    }    
 }
+

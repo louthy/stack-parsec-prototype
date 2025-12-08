@@ -27,9 +27,9 @@ public static class Module<E, T>
         return new Parsec<E, T, A>(instrs, objs);
     }
 
-    public static Parsec<E, T, A> error<A>(ReadOnlySpan<E> errors)  
+    public static Parsec<E, T, A> error<A>(E error)  
         where A : allows ref struct =>
-        new (Bytes.singleton(OpCode.Error).Add((byte)0), Stack.singleton(errors));
+        new (Bytes.singleton(OpCode.Error).Add((byte)0), Stack.singleton(error));
 
     public static Parsec<E, T, A> @try<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>

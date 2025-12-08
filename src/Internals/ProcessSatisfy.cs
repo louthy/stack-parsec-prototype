@@ -18,14 +18,13 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="pc">Program counter</param>
     /// <param name="taken">Tokens read, so far</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ProcessSatisfy(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc, ref int taken)
+    static void ProcessSatisfy(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc, ref int taken)
     {
         var start = state.Position.Offset;
         var data  = state.Input.Slice(start, 1);
         if (data.Length < 1)
         {
-            stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                         .Push(StackReply.EmptyError);
+            stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
             return;
         }
         
@@ -44,8 +43,7 @@ static partial class ParsecInternals<E, T, A>
             else
             {
                 // Unexpected token
-                stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data))
-                             .Push(StackReply.EmptyError);
+                stack = ParseErrorStack.Token(token, false, false, state.Position, stack);
             }
         }
         else

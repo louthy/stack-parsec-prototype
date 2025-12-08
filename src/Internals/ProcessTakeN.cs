@@ -18,7 +18,7 @@ static partial class ParsecInternals<E, T, A>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void ProcessTakeN(
         Bytes instructions, 
-        ref State<T, E> state, 
+        ref State<E, T> state, 
         ref Stack stack, 
         ref int pc, 
         ref int taken)
@@ -28,8 +28,7 @@ static partial class ParsecInternals<E, T, A>
         pc += 4;
         if (offset + n > state.Input.Length)
         {
-            stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                         .Push(StackReply.EmptyError);
+            stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
         }
         else
         {

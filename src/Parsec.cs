@@ -35,15 +35,75 @@ public readonly ref struct Parsec<E, T, A>
     /// <param name="stream">Stream of tokens</param>
     /// <param name="stackMem">Memory to use for the stack</param>
     /// <param name="sourceName">Name of the source, usually a source-file name</param>
+    /// <param name="f">Function to map away from a possible ref type to something concrete</param>
     /// <returns>Result of the parsing operation</returns>
-    public ParserResult<E, T, A> Parse(ReadOnlySpan<T> stream, Span<byte> stackMem, string sourceName = "")
+    public ParserResult<E, T, B> Parse<B>(ReadOnlySpan<T> stream, Span<byte> stackMem, Func<A, B> f) =>
+        Parse(stream, stackMem, "", f);
+
+    /// <summary>
+    /// Parse a stream of tokens
+    /// </summary>
+    /// <param name="stream">Stream of tokens</param>
+    /// <param name="stackMem">Memory to use for the stack</param>
+    /// <param name="sourceName">Name of the source, usually a source-file name</param>
+    /// <param name="f">Function to map away from a possible ref type to something concrete</param>
+    /// <returns>Result of the parsing operation</returns>
+    public ParserResult<E, T, B> Parse<B>(ReadOnlySpan<T> stream, Span<byte> stackMem, string sourceName, Func<A, B> f) =>
+        Parse(stream,
+              stackMem,
+              sourceName,
+              (x, s) => ParserResult.ConsumedOK(f(x), s),
+              (x, s) => ParserResult.EmptyOK(f(x), s),
+              ParserResult.ConsumedErr<E, T, B>,
+              ParserResult.EmptyErr<E, T, B>);
+
+    /// <summary>
+    /// Parse a stream of tokens
+    /// </summary>
+    /// <param name="stream">Stream of tokens</param>
+    /// <param name="stackMem">Memory to use for the stack</param>
+    /// <param name="sourceName">Name of the source, usually a source-file name</param>
+    /// <param name="cok">Consumed OK handler (parsed input tokens into a value)</param>
+    /// <param name="eok">Empty OK handler (didn't parse any tokens but was able to yield a successful result)</param>
+    /// <param name="cerr">Consumed error handler (usually fatal)</param>
+    /// <param name="eerr">Empty error handler (often recoverable)</param>
+    /// <returns>Result of the parsing operation</returns>
+    public B Parse<B>(
+        ReadOnlySpan<T> stream,
+        Span<byte> stackMem,
+        Func<A, State<E, T>, B> cok,
+        Func<A, State<E, T>, B> eok,
+        Func<ParseError<E, T>, State<E, T>, B> cerr,
+        Func<ParseError<E, T>, State<E, T>, B> eerr) =>
+        Parse(stream, stackMem, "", cok, eok, cerr, eerr);
+
+    /// <summary>
+    /// Parse a stream of tokens
+    /// </summary>
+    /// <param name="stream">Stream of tokens</param>
+    /// <param name="stackMem">Memory to use for the stack</param>
+    /// <param name="sourceName">Name of the source, usually a source-file name</param>
+    /// <param name="cok">Consumed OK handler (parsed input tokens into a value)</param>
+    /// <param name="eok">Empty OK handler (didn't parse any tokens but was able to yield a successful result)</param>
+    /// <param name="cerr">Consumed error handler (usually fatal)</param>
+    /// <param name="eerr">Empty error handler (often recoverable)</param>
+    /// <returns>Result of the parsing operation</returns>
+    public B Parse<B>(
+        ReadOnlySpan<T> stream, 
+        Span<byte> stackMem, 
+        string sourceName,
+        Func<A, State<E, T>, B> cok,
+        Func<A, State<E, T>, B> eok,
+        Func<ParseError<E, T>, State<E, T>, B> cerr,
+        Func<ParseError<E, T>, State<E, T>, B> eerr)
     {
         var stack        = new Stack(stackMem);
         var instructions = Instructions;
         var constants    = Constants;
-        var errors       = RefSeq<ParseError<T, E>>.Empty;
-        var state        = new State<T, E>(stream, SourcePosRef.FromName(sourceName), errors);
-        return ParsecInternals<E, T, A>.Parse(instructions, constants, 0, state, stack);
+        var errors       = RefSeq<ParseError<E, T>>.Empty;
+        var state        = new State<E, T>(stream, SourcePosRef.FromName(sourceName), errors);
+
+        return ParsecInternals<E, T, A>.Parse(instructions, constants, 0, state, stack, cok, eok, cerr, eerr);
     }
 
     /// <summary>

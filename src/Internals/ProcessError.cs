@@ -22,15 +22,17 @@ static partial class ParsecInternals<E, T, A>
         Bytes instructions, 
         Stack constants, 
         int constantOffset, 
-        in State<T, E> state, 
+        in State<E, T> state, 
         ref Stack stack, 
         ref int pc, 
         int taken)
     {
-        if (constants.At<ReadOnlySpan<E>>(instructions[pc++] + constantOffset, out var errs))
+        if (constants.At<E>(instructions[pc++] + constantOffset, out var err))
         {
-            stack = stack.Push(ParseErrorRef<T, E>.Custom(state.Position, errs))
-                         .Push(taken == 0 ? StackReply.EmptyError : StackReply.ConsumedError);
+            stack = ParseErrorStack.Custom(err, taken > 0, true, state.Position, stack);
+            
+            // stack = stack.Push(ParseErrorRef<E, T>.Custom(state.Position, errs))
+            //              .Push(taken == 0 ? StackReply.EmptyError : StackReply.ConsumedError);
         }
         else
         {

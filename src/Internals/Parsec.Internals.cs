@@ -7,82 +7,61 @@ static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
     where A : allows ref struct
 {
-    public static ParserResult<E, T, A> Parse(Bytes instructions, Stack constants, int constantOffset, State<T, E> state, Stack stack)
+    public static B Parse<B>(
+        Bytes instructions, 
+        Stack constants, 
+        int constantOffset, 
+        State<E, T> state, 
+        Stack stack,
+        Func<A, State<E, T>, B> consumedOk,
+        Func<A, State<E, T>, B> emptyOk,
+        Func<ParseError<E, T>, State<E, T>, B> consumedErr,
+        Func<ParseError<E, T>, State<E, T>, B> emptyErr)
     {
         var taken = ParseUntyped(instructions, constants, constantOffset, ref state, ref stack);
 
-        if(stack.Peek<StackReply>(out var reply))
+        switch (stack.PeekReply())
         {
-            switch (reply)
+            case (StackReply.OK, _, _):
             {
-                case StackReply.OK:
+                stack = stack.Pop();
+                if (stack.Peek<A>(out var val))
                 {
                     stack = stack.Pop();
-                    if (stack.Peek<A>(out var val))
-                    {
-                        stack = stack.Pop();
-                        return taken == 0
-                            ? ParserResult.EmptyOK(val, state)
-                            : ParserResult.ConsumedOK(val, state);
-                    }
-                    else
-                    {
-                        throw new Exception("Top of stack is not of a value we expected");
-                    }
+                    return taken == 0
+                        ? emptyOk(val, state)
+                        : consumedOk(val, state);
                 }
-                
-                case StackReply.EmptyError:
-                case StackReply.ConsumedError:
-                    stack = stack.Pop();
-                    if (stack.Peek<ParseErrorRef<T, E>>(out var err2))
-                    {
-                        stack = stack.Pop();
-                        return taken == 0
-                            ? ParserResult.EmptyErr<E, T, A>(err2.UnRef(), state)
-                            : ParserResult.ConsumedErr<E, T, A>(err2.UnRef(), state);
-                    }
-                    else if (stack.Peek<ParseError<T, E>>(out var err3))
-                    {
-                        stack = stack.Pop();
-                        return taken == 0
-                            ? ParserResult.EmptyErr<E, T, A>(err3, state)
-                            : ParserResult.ConsumedErr<E, T, A>(err3, state);
-                    }
-                    else if (stack.Peek<E>(out var err1))
-                    {
-                        stack = stack.Pop();
-                        return taken == 0
-                            ? ParserResult.EmptyErr<E, T, A>(ParseError<T, E>.Custom(state.Position.UnRef(), [err1]), state)
-                            : ParserResult.ConsumedErr<E, T, A>(ParseError<T, E>.Custom(state.Position.UnRef(), [err1]),
-                                state);
-                    }
-                    else
-                    {
-                        throw new Exception("Top of stack is not a known error type");
-                    }
-                    break;
-                
-                default:
-                    throw new Exception("Top of stack is not a known StackReply");
+                else
+                {
+                    throw new Exception($"The value at the top of stack is not of the type we expected ({typeof(A).Name})");
+                }
             }
-        }
-        else
-        {
-            throw new Exception("Top of stack is not of a StackReply");
+            
+            default:
+                if (ParseErrorStack.PopParseError<E, T>(ref stack, out var err))
+                {
+                    return err.Consumed
+                               ? consumedErr(err, state)
+                               : emptyErr(err, state);
+                }
+                else
+                {
+                    throw new Exception("The value at the top of stack is a ParseError as expected");
+                }
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack)
+    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack)
     {
         var pc = 0; // program counter
         return ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
     }
 
-    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<T, E> state, ref Stack stack, ref int pc)
+    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc)
     {
-        var collectedErrors = new ParseErrorRef<T, E>();
-        var taken           = 0;
+        var taken = 0;
         while(true)
         {
             // No more instructions?
@@ -160,96 +139,102 @@ static partial class ParsecInternals<E, T, A>
             var loop = true;
             while (loop)
             {
-                if (stack.Peek<StackReply>(out var reply))
+                switch (stack.PeekReply())
                 {
-                    switch (reply)
-                    {
-                        case StackReply.OK:
-                            // Remove the OK from the stack, leaving just the success value
+                    case (StackReply.OK, _, _):
+                        // Remove the OK from the stack, leaving just the success value
+                        stack = stack.Pop();
+
+                        // If the top of the stack is a ParserCore, then run it.  This means any of the 
+                        // op-code processes can return more code to run.
+                        if (stack.Peek<ParsecCore>(out var p))
+                        {
+                            // We have a parser, so pop it
                             stack = stack.Pop();
 
-                            // If the top of the stack is a ParserCore, then run it.  This means any of the 
-                            // op-code processes can return more code to run.
-                            if (stack.Peek<ParsecCore>(out var p))
+                            // Run the parser
+                            taken += ParseUntyped(p.Instructions, p.Constants, 0, ref state, ref stack);
+                        }
+                        else
+                        {
+                            // No more instructions, or, look ahead, if there's an OR instruction,
+                            // then we're done, because we succeeded here.
+                            if (pc >= instructions.Count || instructions[pc] == (byte)OpCode.Or)
                             {
-                                // We have a parser, so pop it
-                                stack = stack.Pop();
-
-                                // Run the parser
-                                taken += ParseUntyped(p.Instructions, p.Constants, 0, ref state, ref stack);
+                                stack = stack.Push(StackReply.OK);
+                                return taken;
                             }
                             else
                             {
-                                // No more instructions, or, look ahead, if there's an OR instruction,
-                                // then we're done, because we succeeded here.
-                                if (pc >= instructions.Count || instructions[pc] == (byte)OpCode.Or)
-                                {
-                                    stack = stack.Push(StackReply.OK);
-                                    return taken;
-                                }
-                                else
-                                {
-                                    // If there isn't a ParserCore on the stack, then exit the loop and keep
-                                    // running the instructions.
-                                    loop = false;
-                                }
+                                // If there isn't a ParserCore on the stack, then exit the loop and keep
+                                // running the instructions.
+                                loop = false;
                             }
-                            break;
+                        }
+                        break;
+                    
+                    case (StackReply.EmptyError, var errType, var expected):
                         
-                        case StackReply.EmptyError:
+                        // No more instructions?
+                        if (pc >= instructions.Count)
+                        {
+                            return taken;
+                        }
+                        
+                        // Look ahead, we need an OR instruction to continue
+                        if (instructions[pc] == (byte)OpCode.Or)
+                        {
+                            // Skip the OR
+                            pc++;
                             
-                            // No more instructions?
-                            if (pc >= instructions.Count)
-                            {
-                                return taken;
-                            }
-                            
-                            // Look ahead, we need an OR instruction to continue
-                            if (instructions[pc] == (byte)OpCode.Or)
-                            {
-                                // Pop the StackReply
-                                stack = stack.Pop();
-                                
-                                // Skip the OR
-                                pc++;
-                                
-                                // Constants offset
-                                constantOffset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
-                                pc += 4;
+                            // Constants offset
+                            constantOffset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
+                            pc += 4;
 
-                                if (stack.Peek<ParseErrorRef<T, E>>(out var err))
-                                {
-                                    // Collect the error
-                                    collectedErrors = collectedErrors.Combine(err);
-                                    
-                                    // Pop the error off the stack
-                                    stack = stack.Pop();
-                                    
-                                    // Continue parsing
-                                    loop = false;
-                                    break;
-                                }
-                                else
-                                {
-                                    throw new Exception("Or: expected ParseErrorRef on the stack");
-                                }
+                            // Pop the error off the stack
+                            if (stack.PopError<E, T>(out var err))
+                            {
+                                // TODO: This is the original strategy before I serialised the errors to the 
+                                //       stack, rather than create one large ParseErrorRef.  
+                                //
+                                //    *  This is now allocating a new ParseError when really we don't
+                                //       need it right now.  
+                                //
+                                //    *  What we know is that the error is on the stack and we may need
+                                //       to collect multiple errors.
+                                //
+                                //    *  So a future strategy is to leave it on the stack and let multiple errors
+                                //       accumulate.  We can then collect them at the end of the process and do
+                                //       a single round of allocations at that point.
+                                //
+                                //    *  We could also have a set of ConsumedOK, ConsumedErr, EmptyOK, EmptyErr 
+                                //       delegates like Megaparsec and invoke them directly based om the stack
+                                //       values.  That might mean no allocation of ParseError types.
+                                
+                                // Collect the error
+                                //collectedErrors = collectedErrors.Combine(err);
+                                
+                                // Continue parsing
+                                loop = false;
+                                break;
                             }
                             else
                             {
-                                // We've got a failure that hasn't been caught by an OR instruction, so we early-out
-                                // with the failure value remaining on the stack
-                                return taken;
+                                throw new Exception("Or: expected ParseErrorRef on the stack");
                             }
-
-                        default:
-                            // We've got a failure, so we early-out with the failure value remaining on the stack
+                        }
+                        else
+                        {
+                            // We've got a failure that hasn't been caught by an OR instruction, so we early-out
+                            // with the failure value remaining on the stack
                             return taken;
-                    }
+                        }
+
+                    default:
+                        // We've got a failure, so we early-out with the failure value remaining on the stack
+                        return taken;
                 }
-                else
-                {
-                    throw new Exception("Invoke: expected StackReply");
-                }
+
             }
         }
     }

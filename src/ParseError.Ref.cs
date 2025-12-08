@@ -1,8 +1,9 @@
+/*
 using System.Numerics;
 
 namespace StackParsecPrototype;
 
-public readonly ref struct ParseErrorRef<T, E>
+public readonly ref struct ParseErrorRef<E, T>
     where T : IEqualityOperators<T, T, bool>
 {
     readonly SourcePosRef Position;
@@ -91,31 +92,31 @@ public readonly ref struct ParseErrorRef<T, E>
         HasBeenInitialised = 1;
     }
 
-    public ParseError<T, E> UnRef() =>
+    public ParseError<E, T> UnRef() =>
         new (Position.UnRef(), CustomErrors, UnexpectedTokens, UnexpectedLabels, ExpectedTokens, ExpectedLabels, EndOfInput);
     
-    public static ParseErrorRef<T, E> Tokens(SourcePosRef position, ReadOnlySpan<T> unexpectedTokens, ReadOnlySpan<T> expectedTokens) =>
+    public static ParseErrorRef<E, T> Tokens(SourcePosRef position, ReadOnlySpan<T> unexpectedTokens, ReadOnlySpan<T> expectedTokens) =>
         new (position, unexpectedTokens, expectedTokens);
     
-    public static ParseErrorRef<T, E> Tokens(SourcePosRef position, ReadOnlySpan<T> unexpectedTokens) =>
+    public static ParseErrorRef<E, T> Tokens(SourcePosRef position, ReadOnlySpan<T> unexpectedTokens) =>
         new (position, unexpectedTokens, ReadOnlySpan<T>.Empty);
     
-    public static ParseErrorRef<T, E> Label(SourcePosRef position, ReadOnlySpan<string> expectedLabels, ReadOnlySpan<string> unexpectedLabels) =>
+    public static ParseErrorRef<E, T> Label(SourcePosRef position, ReadOnlySpan<string> expectedLabels, ReadOnlySpan<string> unexpectedLabels) =>
         new (position, expectedLabels, unexpectedLabels);
     
-    public static ParseErrorRef<T, E> ExpectedEndOfInput(SourcePosRef position) =>
+    public static ParseErrorRef<E, T> ExpectedEndOfInput(SourcePosRef position) =>
         new (position, 1);
     
-    public static ParseErrorRef<T, E> UnexpectedEndOfInput(SourcePosRef position) =>
+    public static ParseErrorRef<E, T> UnexpectedEndOfInput(SourcePosRef position) =>
         new (position, 2);
 
-    public static ParseErrorRef<T, E> Custom(SourcePosRef position, ReadOnlySpan<E> errors) =>
+    public static ParseErrorRef<E, T> Custom(SourcePosRef position, ReadOnlySpan<E> errors) =>
         new (position, errors);
 
-    public static ParseErrorRef<T, E> operator +(ParseErrorRef<T, E> lhs, ParseErrorRef<T, E> rhs) =>
+    public static ParseErrorRef<E, T> operator +(ParseErrorRef<E, T> lhs, ParseErrorRef<E, T> rhs) =>
         lhs.Combine(rhs);
     
-    public ParseErrorRef<T, E> Combine(ParseErrorRef<T, E> rhs)
+    public ParseErrorRef<E, T> Combine(ParseErrorRef<E, T> rhs)
     {
         if (rhs.HasBeenInitialised == 0) return this;
         if (HasBeenInitialised == 0) return rhs;
@@ -135,7 +136,7 @@ public readonly ref struct ParseErrorRef<T, E>
                 return rhs;
 
             default:
-                return new ParseErrorRef<T, E>(Position, Concat(ce1, ce2));
+                return new ParseErrorRef<E, T>(Position, Concat(ce1, ce2));
         }
 
         var ut1 = UnexpectedTokens;
@@ -204,7 +205,7 @@ public readonly ref struct ParseErrorRef<T, E>
 
         var ei = (byte)(EndOfInput | rhs.EndOfInput);
         
-        return new ParseErrorRef<T, E>(Position, ReadOnlySpan<E>.Empty, ut, ul, et, el, ei);
+        return new ParseErrorRef<E, T>(Position, ReadOnlySpan<E>.Empty, ut, ul, et, el, ei);
     }
 
     ReadOnlySpan<X> Concat<X>(ReadOnlySpan<X> lhs, ReadOnlySpan<X> rhs)
@@ -215,3 +216,4 @@ public readonly ref struct ParseErrorRef<T, E>
         return xs;
     }
 }
+*/

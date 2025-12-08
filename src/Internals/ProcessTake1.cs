@@ -14,13 +14,12 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="stack">VM stack</param>
     /// <param name="taken">Tokens read, so far</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ProcessTake1(ref State<T, E> state, ref Stack stack, ref int taken)
+    static void ProcessTake1(ref State<E, T> state, ref Stack stack, ref int taken)
     {
         var offset = state.Position.Offset;
         if (offset + 1 > state.Input.Length)
         {
-            stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                         .Push(StackReply.EmptyError);
+            stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
         }
         else
         {

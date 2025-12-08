@@ -22,7 +22,7 @@ static partial class ParsecInternals<E, T, A>
         Bytes instructions, 
         Stack constants, 
         int constantOffset,
-        ref State<T, E> state, 
+        ref State<E, T> state, 
         ref Stack stack, 
         ref int pc,
         ref int taken)

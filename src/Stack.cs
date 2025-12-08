@@ -59,6 +59,18 @@ public readonly ref struct Stack
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => bottom >> 2;
     }
+    
+    public int Top 
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => top;
+    }
+    
+    public int Bottom 
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => bottom;
+    }
 
     public bool Initialised
     {

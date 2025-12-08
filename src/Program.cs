@@ -57,18 +57,34 @@ var p12 = from x in token('a') | token('x')
           from y in token('b') | token('y')
           select (x, y);
 
-var p13 = error<int>([Errors.SequenceEmpty]) | error<int>([Errors.Cancelled]) | pure(2);
+var p13 = error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | pure(2);
 
 var r = p13.Parse("abcxyzabc", stackMem);
 
-switch (r)
-{
-    case { Ok: true }:
-        Console.WriteLine(r.Value);
-        break;
-    
-    default:
-        Console.WriteLine(string.Concat(r.ErrorDisplay));
-        break;    
-}
+showResult(r);
 
+static void showResult<A>(ParserResult<Error, char, A> r)
+{
+    switch (r)
+    {
+        case ParserResult<Error,char, A>.ConsumedOK(var value, _):
+            Console.WriteLine(value);
+            break;
+
+        case ParserResult<Error,char, A>.EmptyOK(var value, _):
+            Console.WriteLine(value);
+            break;
+
+        case ParserResult<Error,char, A>.ConsumedErr(var value, _):
+            Console.WriteLine(value);
+            break;
+
+        case ParserResult<Error,char, A>.EmptyErr(var value, _):
+            Console.WriteLine(value);
+            break;
+        
+        default:
+            Console.WriteLine("Unknown result");
+            break;
+    }
+}

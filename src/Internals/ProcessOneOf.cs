@@ -22,7 +22,7 @@ static partial class ParsecInternals<E, T, A>
         Bytes instructions, 
         Stack constants, 
         int constantOffset, 
-        ref State<T, E> state, 
+        ref State<E, T> state, 
         ref Stack stack, 
         ref int pc, 
         ref int taken)
@@ -34,8 +34,7 @@ static partial class ParsecInternals<E, T, A>
             var data  = state.Input.Slice(start, 1);
             if (data.Length < 1)
             {
-                stack = stack.Push(ParseErrorRef<T, E>.UnexpectedEndOfInput(state.Position))
-                             .Push(StackReply.EmptyError);
+                stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
                 return;
             }
 
@@ -45,9 +44,7 @@ static partial class ParsecInternals<E, T, A>
                 if (t == token)
                 {
                     // Success
-                    stack = stack.Push(token)
-                                 .Push(StackReply.OK);
-
+                    stack = stack.Push(token).Push(StackReply.OK);
                     state = state.NextToken;
                     taken++;
                     return;
@@ -55,8 +52,11 @@ static partial class ParsecInternals<E, T, A>
             }
 
             // Unexpected token
-            stack = stack.Push(ParseErrorRef<T, E>.Tokens(state.Position, data, tokens))
-                         .Push(StackReply.EmptyError);
+            // TODO: Provide expected tokens as well
+            stack = ParseErrorStack.Token(token, false, false, state.Position, stack);
+            
+            //stack = stack.Push(ParseErrorRef<E, T>.Tokens(state.Position, data, tokens))
+            //             .Push(StackReply.EmptyError);
         }
         else
         {
