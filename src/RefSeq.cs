@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 namespace StackParsecPrototype;
 
 /// <summary>
-/// A collection of values that's managed as a ref-struct (entirely on the heap).  It is backed by a Span&lt;T&gt;
+/// A collection of values that's managed as a ref-struct (entirely on the stack).  It is backed by a Span&lt;T&gt;
 /// which you can provide yourself (so, you can stack allocate it). If you don't provide one, it will be allocated on
 /// the heap. The collection works like an lock-free immutable-type, even if behind the scenes there's mutational logic.
 ///

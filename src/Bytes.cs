@@ -2,7 +2,7 @@ namespace StackParsecPrototype;
 
 /// <summary>
 /// Bytes collection.  It is backed by a Span&lt;byte&gt; which you can provide yourself (so, you can stack allocate it).
-/// If you don't provide one, it will be allocated on the heap. collection works like a lock-free immutable-type,
+/// If you don't provide one, it will be allocated on the heap. The collection works like a lock-free immutable-type,
 /// even if behind the scenes there's mutational logic.
 ///
 /// This type allows you to have a stack-allocated structure for the most common situations in your application (which
