@@ -212,7 +212,7 @@ static class ParsecInternals<E, T, A>
                                 pc++;
                                 
                                 // Constants offset
-                                constantOffset += BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
+                                constantOffset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
                                 pc += 4;
 
                                 if (stack.Peek<ParseErrorRef<T, E>>(out var err))

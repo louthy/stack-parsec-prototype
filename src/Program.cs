@@ -57,7 +57,7 @@ var p12 = from x in token('a') | token('x')
           from y in token('b') | token('y')
           select (x, y);
 
-var p13 = error<int>([Errors.SequenceEmpty]) | pure(1);
+var p13 = error<int>([Errors.SequenceEmpty]) | error<int>([Errors.Cancelled]) | pure(2);
 
 var r = p13.Parse("abcxyzabc", stackMem);
 
