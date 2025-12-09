@@ -33,7 +33,7 @@ static partial class ParsecInternals<E, T, A>
         if (data.Length < 1)
         {
             stack = stack.Push(ReadOnlySpan<T>.Empty)
-                         .Push(StackReply.OK);
+                         .PushOK();
             return;
         }
         
@@ -46,7 +46,7 @@ static partial class ParsecInternals<E, T, A>
                     state = state.Next(count);
                     taken += count;
                     stack = stack.Push(data.Slice(0, count))
-                                 .Push(StackReply.OK);
+                                 .PushOK();
                     return;
                 }
                 else

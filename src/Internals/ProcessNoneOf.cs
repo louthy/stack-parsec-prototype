@@ -51,7 +51,7 @@ static partial class ParsecInternals<E, T, A>
 
             // Success
             stack = stack.Push(token)
-                         .Push(StackReply.OK);
+                         .PushOK();
 
             state = state.NextToken;
             taken++;

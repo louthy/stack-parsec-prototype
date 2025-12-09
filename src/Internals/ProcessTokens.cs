@@ -53,8 +53,7 @@ static partial class ParsecInternals<E, T, A>
                     }
                 }
                 
-                stack = stack.Push(read)
-                             .Push(StackReply.OK);
+                stack = stack.Push(read).PushOK();
             }
         }
         else

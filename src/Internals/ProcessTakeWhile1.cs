@@ -55,7 +55,7 @@ static partial class ParsecInternals<E, T, A>
                     {
                         // Success
                         stack = stack.Push(data.Slice(0, count))
-                                     .Push(StackReply.OK);
+                                     .PushOK();
                     }
 
                     return;

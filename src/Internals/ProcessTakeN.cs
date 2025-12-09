@@ -33,8 +33,7 @@ static partial class ParsecInternals<E, T, A>
         else
         {
             var ts = state.Input.Slice(offset, n);
-            stack = stack.Push(ts)
-                         .Push(StackReply.OK);
+            stack = stack.Push(ts).PushOK();
             state = state.Next(n);
             taken += n;
         }

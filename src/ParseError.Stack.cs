@@ -40,10 +40,6 @@ public static class ParseErrorStack
              : 0)
       | (int)type;
 
-    public static bool IsOK(Stack stack) =>
-        stack.Peek<int>(out var top) &&
-        (top & (int)StackReply.OK) == (int)StackReply.OK;
-
     public static (StackReply Reply, StackReplyErrorType Type, bool Expected) GetReplyCode(int code) =>
         (code switch
          {

@@ -30,6 +30,12 @@ public static class StackReplyExtensions
 {
     extension(ref Stack self)
     {
+        public bool PopError<E, T>(out ParseError<E, T> err) =>
+            ParseErrorStack.PopParseError(ref self, out err);
+    }
+
+    extension(Stack self)
+    {
         public (StackReply Reply, StackReplyErrorType Type, bool Expected) PeekReply()
         {
             if (self.Peek<int>(out var reply))
@@ -42,7 +48,11 @@ public static class StackReplyExtensions
             }
         }
         
-        public bool PopError<E, T>(out ParseError<E, T> err) =>
-            ParseErrorStack.PopParseError(ref self, out err);
+        public static bool IsOK(Stack stack) =>
+            stack.Peek<int>(out var top) &&
+            (top & (int)StackReply.OK) == (int)StackReply.OK;
+
+        public Stack PushOK() =>
+            self.Push((int)StackReply.OK);
     }
 }

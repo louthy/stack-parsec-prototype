@@ -67,7 +67,7 @@ static partial class ParsecInternals<E, T, A>
             // No more instructions?
             if (pc >= instructions.Count)
             {
-                stack = stack.Push(StackReply.OK);
+                stack = stack.PushOK();
                 return taken;
             }
             
@@ -79,7 +79,7 @@ static partial class ParsecInternals<E, T, A>
                 case OpCode.Pure:
                     // Read the pure constant and push it onto the stack.
                     stack = stack.ReadFromAndPush(constants, instructions[pc] + constantOffset)
-                                 .Push(StackReply.OK);
+                                 .PushOK();
                     pc++;
                     break;
 
@@ -161,7 +161,7 @@ static partial class ParsecInternals<E, T, A>
                             // then we're done, because we succeeded here.
                             if (pc >= instructions.Count || instructions[pc] == (byte)OpCode.Or)
                             {
-                                stack = stack.Push(StackReply.OK);
+                                stack = stack.PushOK();
                                 return taken;
                             }
                             else
