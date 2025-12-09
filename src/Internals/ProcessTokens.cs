@@ -28,7 +28,7 @@ static partial class ParsecInternals<E, T, A>
         ref int taken)
     {
         // Get the tokens
-        if (constants.At<ReadOnlySpan<T>>(instructions[pc++] + constantOffset, out var tokens))
+        if (constants.At<ReadOnlySpan<T>>(instructions.GetConstantId(ref pc, constantOffset), out var tokens))
         {
             var offset = state.Position.Offset;
             if (offset + tokens.Length > state.Input.Length)

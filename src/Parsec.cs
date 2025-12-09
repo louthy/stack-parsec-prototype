@@ -137,9 +137,9 @@ public readonly ref struct Parsec<E, T, A>
         var constIx = Constants.Count;
         if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
 
-        var instrs = Instructions.Add((byte)OpCode.Invoke)
-                                 .Add((byte)constIx)
-                                 .Add((byte)(constIx + 1));
+        var instrs = Instructions.Add(OpCode.Invoke)
+                                 .AddConstantId(constIx)
+                                 .AddConstantId(constIx + 1);
 
         var constants = Constants.PushStackOp(go)
                                  .Push(f);
@@ -155,8 +155,7 @@ public readonly ref struct Parsec<E, T, A>
                 {
                     stack = stack.Pop();
                     var v = f(x);
-                    return stack.Push(v)
-                                .PushOK();
+                    return stack.Push(v).PushOK();
                 }
                 else
                 {
@@ -183,9 +182,9 @@ public readonly ref struct Parsec<E, T, A>
         var constIx = Constants.Count;
         if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
         
-        var instrs = Instructions.Add((byte)OpCode.Invoke)
-                                 .Add((byte)constIx)
-                                 .Add((byte)(constIx + 1));
+        var instrs = Instructions.Add(OpCode.Invoke)
+                                 .AddConstantId(constIx)
+                                 .AddConstantId(constIx + 1);
 
         var constants = Constants.PushStackOp(go)
                                  .Push(bind);
@@ -231,12 +230,12 @@ public readonly ref struct Parsec<E, T, A>
         var constIx = Constants.Count;
         if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
         
-        var instrs = Instructions.Add((byte)OpCode.InvokeM)
-                                 .Add((byte)constIx)
-                                 .Add((byte)(constIx + 1))
-                                 .Add((byte)OpCode.Invoke)
-                                 .Add((byte)(constIx + 2))
-                                 .Add((byte)(constIx + 3));
+        var instrs = Instructions.Add(OpCode.InvokeM)
+                                 .AddConstantId(constIx)
+                                 .AddConstantId(constIx + 1)
+                                 .Add(OpCode.Invoke)
+                                 .AddConstantId(constIx + 2)
+                                 .AddConstantId(constIx + 3);
 
         var constants = Constants.PushStackOp(go1)
                                  .Push(bind) 

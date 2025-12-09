@@ -27,7 +27,7 @@ static partial class ParsecInternals<E, T, A>
         ref int pc, 
         int taken)
     {
-        if (constants.At<E>(instructions[pc++] + constantOffset, out var err))
+        if (constants.At<E>(instructions.GetConstantId(ref pc, constantOffset), out var err))
         {
             stack = ParseErrorStack.Custom(err, taken > 0, true, state.Position, stack);
             

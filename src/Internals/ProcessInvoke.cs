@@ -24,10 +24,10 @@ static partial class ParsecInternals<E, T, A>
         ref int pc)
     {
         // Get the wrapper function
-        if (constants.At<Func<Stack, Stack, Stack>>(instructions[pc++] + constantOffset, out var go))
+        if (constants.At<Func<Stack, Stack, Stack>>(instructions.GetConstantId(ref pc, constantOffset), out var go))
         {
             // Read the function to invoke
-            stack = stack.ReadFromAndPush(constants, instructions[pc++] + constantOffset);
+            stack = stack.ReadFromAndPush(constants, instructions.GetConstantId(ref pc, constantOffset));
             
             // Invoke the wrapper function that calls the real function
             stack = go(stack, constants);

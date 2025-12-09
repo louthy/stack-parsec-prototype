@@ -1,5 +1,6 @@
 ﻿using LanguageExt.Common;
 using StackParsecPrototype;
+using static LanguageExt.Prelude;
 using static StackParsecPrototype.Module<LanguageExt.Common.Error, char>;
 using static StackParsecPrototype.CharModule<LanguageExt.Common.Error>;
 
@@ -59,7 +60,7 @@ var p12 = from x in token('a') | token('x')
 
 var p13 = error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | pure(2);
 
-var r = p13.Parse("abcxyzabc", stackMem);
+var r = p5.Parse("abcxyzabc", stackMem);
 
 showResult(r);
 

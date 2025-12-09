@@ -80,7 +80,7 @@ static partial class ParsecInternals<E, T, A>
                     // Read the pure constant and push it onto the stack.
                     stack = stack.ReadFromAndPush(constants, instructions[pc] + constantOffset)
                                  .PushOK();
-                    pc++;
+                    pc+=2;
                     break;
 
                 case OpCode.Error:

@@ -174,6 +174,26 @@ public readonly ref struct Bytes
         Cons((byte)opCode);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddConstantId(int value)
+    {
+        if(value < 0) throw new IndexOutOfRangeException("ConstantId must be >= 0");
+        if(value > ushort.MaxValue) throw new IndexOutOfRangeException("ConstantId must be less than 65536");
+        var v = (ushort)value;
+        Span<byte> buffer = stackalloc byte[2];
+        BitConverter.TryWriteBytes(buffer, v);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public int GetConstantId(ref int pc, int offset)
+    {
+        //Replaces original: instructions[pc++] + constantOffset
+        ReadOnlySpan<byte> instrs = Span(pc, 2);
+        pc += 2;
+        return BitConverter.ToUInt16(instrs) + offset;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes AddUInt32(uint value)
     {
         Span<byte> buffer = stackalloc byte[4];

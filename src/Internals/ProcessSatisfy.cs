@@ -28,7 +28,7 @@ static partial class ParsecInternals<E, T, A>
             return;
         }
         
-        if (constants.At<Func<T, bool>>(instructions[pc++] + constantOffset, out var predicate))
+        if (constants.At<Func<T, bool>>(instructions.GetConstantId(ref pc, constantOffset), out var predicate))
         {
             var token = data[0];
             if (predicate(token))

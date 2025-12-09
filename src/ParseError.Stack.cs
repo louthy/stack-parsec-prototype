@@ -86,13 +86,13 @@ public static class ParseErrorStack
                 case (var reply, StackReplyErrorType.Token, var expected):
                 {
                     stack = stack.Pop(); // Pop reply
-                    if (stack.Peek<SourcePos>(out var pos))
+                    if (stack.Peek<SourcePosRef>(out var pos))
                     {
                         stack = stack.Pop(); // Pop SourcePos
                         if (stack.Peek<T>(out var token))
                         {
                             stack = stack.Pop(); // Pop err
-                            result = ParseError.Token<E, T>(token, reply == StackReply.ConsumedError, expected, pos);
+                            result = ParseError.Token<E, T>(token, reply == StackReply.ConsumedError, expected, pos.UnRef());
                             return true;
                         }
                         else
@@ -109,13 +109,13 @@ public static class ParseErrorStack
                 case (var reply, StackReplyErrorType.Tokens, var expected):
                 {
                     stack = stack.Pop(); // Pop reply
-                    if (stack.Peek<SourcePos>(out var pos))
+                    if (stack.Peek<SourcePosRef>(out var pos))
                     {
                         stack = stack.Pop(); // Pop SourcePos
                         if (stack.Peek<ReadOnlySpan<T>>(out var tokens))
                         {
                             stack = stack.Pop(); // Pop err
-                            result = ParseError.Tokens<E, T>([..tokens], reply == StackReply.ConsumedError, expected, pos);
+                            result = ParseError.Tokens<E, T>([..tokens], reply == StackReply.ConsumedError, expected, pos.UnRef());
                             return true;
                         }
                         else
@@ -132,13 +132,13 @@ public static class ParseErrorStack
                 case (var reply, StackReplyErrorType.Label, var expected):
                 {
                     stack = stack.Pop(); // Pop reply
-                    if (stack.Peek<SourcePos>(out var pos))
+                    if (stack.Peek<SourcePosRef>(out var pos))
                     {
                         stack = stack.Pop(); // Pop SourcePos
                         if (stack.Peek<ReadOnlySpan<char>>(out var tokens))
                         {
                             stack = stack.Pop(); // Pop err
-                            result = ParseError.Label<E, T>(new string(tokens), reply == StackReply.ConsumedError, expected, pos);
+                            result = ParseError.Label<E, T>(new string(tokens), reply == StackReply.ConsumedError, expected, pos.UnRef());
                             return true;
                         }
                         else
@@ -155,10 +155,10 @@ public static class ParseErrorStack
                 case (var reply, StackReplyErrorType.EndOfInput, var expected):
                 {
                     stack = stack.Pop(); // Pop reply
-                    if (stack.Peek<SourcePos>(out var pos))
+                    if (stack.Peek<SourcePosRef>(out var pos))
                     {
                         stack = stack.Pop(); // Pop SourcePos
-                        result = ParseError.EndOfInput<E, T>(reply == StackReply.ConsumedError, expected, pos);
+                        result = ParseError.EndOfInput<E, T>(reply == StackReply.ConsumedError, expected, pos.UnRef());
                         return true;
                     }
                     else
