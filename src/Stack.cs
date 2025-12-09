@@ -14,6 +14,12 @@ namespace StackParsecPrototype;
 /// </summary>
 public readonly ref struct Stack
 {
+#if DEBUG
+    const bool ShowDebugMessages = false;
+#else    
+    const bool ShowDebugMessages = false;
+#endif
+    
     readonly RefSeq<object?> objects;
     readonly Span<byte> memory;
     readonly int top;
@@ -202,9 +208,10 @@ public readonly ref struct Stack
         var metadataToken = typeof(A).MetadataToken;
         Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header1), size);           // Size of the value  
         Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header2), metadataToken);  // Allows for simple type-checking
-#if DEBUG
-        Console.WriteLine($"PUSH ({metadataToken}): {typeof(A).Name}");
-#endif        
+        if (ShowDebugMessages)
+        {
+            Console.WriteLine($"PUSH ({metadataToken}): {typeof(A).Name}");
+        }
         
         return new Stack(stack.objects, stack.memory, ntop, nbottom, stack.count);
     }
@@ -237,9 +244,10 @@ public readonly ref struct Stack
         Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header1), objix); // Index into the objects array
         Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header2), metadataToken); // Allows for simple type-checking
 
-#if DEBUG
-        Console.WriteLine($"PUSH ({metadataToken}): {typeof(A).Name}");
-#endif        
+        if (ShowDebugMessages)
+        {
+            Console.WriteLine($"PUSH ({metadataToken}): {typeof(A).Name}");
+        }
         
         return new Stack(stack.objects.Add(value), stack.memory, ntop, nbottom, stack.count);
     }
@@ -256,11 +264,13 @@ public readonly ref struct Stack
         var metadataToken = BitConverter.ToInt32(memory.Slice(top - headerSize + 4, 4));
         if (metadataToken != typeof(A).MetadataToken)
         {
-#if DEBUG
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"PEEK-FAIL (Stack {metadataToken} != Type {typeof(A).MetadataToken}): {typeof(A).Name}");
-            Console.ForegroundColor = ConsoleColor.White;
-#endif        
+            if (ShowDebugMessages)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(
+                    $"PEEK-FAIL (Stack {metadataToken} != Type {typeof(A).MetadataToken}): {typeof(A).Name}");
+                Console.ForegroundColor = ConsoleColor.White;
+            }
             
             returnValue = default!;
             return false;
@@ -284,24 +294,26 @@ public readonly ref struct Stack
                     }
                     else
                     {
-#if DEBUG
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"PEEK-FAIL ({metadataToken}): Stack {objects[ix]?.GetType().Name} != Type {typeof(A).Name}");
-                        Console.ForegroundColor = ConsoleColor.White;
-#endif
-                        
+                        if (ShowDebugMessages)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine(
+                                $"PEEK-FAIL ({metadataToken}): Stack {objects[ix]?.GetType().Name} != Type {typeof(A).Name}");
+                            Console.ForegroundColor = ConsoleColor.White;
+                        }
                         returnValue = default!;
                         return false;
                     }
                 }
                 else
                 {
-#if DEBUG
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"PEEK-FAIL ({metadataToken}): {typeof(A).Name} - not at the top of the stack");
-                    Console.ForegroundColor = ConsoleColor.White;
-#endif
-                    
+                    if (ShowDebugMessages)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine(
+                            $"PEEK-FAIL ({metadataToken}): {typeof(A).Name} - not at the top of the stack");
+                        Console.ForegroundColor = ConsoleColor.White;
+                    }
                     returnValue = default!;
                     return false;
                 }
