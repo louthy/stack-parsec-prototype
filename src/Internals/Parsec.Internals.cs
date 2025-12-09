@@ -61,7 +61,8 @@ static partial class ParsecInternals<E, T, A>
 
     static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc)
     {
-        var taken = 0;
+        var constantOffsetReset = constantOffset;
+        var taken               = 0;
         while(true)
         {
             // No more instructions?
@@ -78,9 +79,8 @@ static partial class ParsecInternals<E, T, A>
             {
                 case OpCode.Pure:
                     // Read the pure constant and push it onto the stack.
-                    stack = stack.ReadFromAndPush(constants, instructions[pc] + constantOffset)
+                    stack = stack.ReadFromAndPush(constants, instructions.GetConstantId(ref pc, constantOffset))
                                  .PushOK();
-                    pc += Bytes.ConstantIdSize;
                     break;
 
                 case OpCode.Error:
@@ -142,6 +142,10 @@ static partial class ParsecInternals<E, T, A>
                 switch (stack.PeekReply())
                 {
                     case (StackReply.OK, _, _):
+                        
+                        // We're not midway through an OR instruction, so reset the constant offset
+                        constantOffset = constantOffsetReset;
+                        
                         // Remove the OK from the stack, leaving just the success value
                         stack = stack.Pop();
 

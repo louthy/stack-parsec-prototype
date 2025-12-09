@@ -15,7 +15,7 @@ namespace StackParsecPrototype;
 public readonly ref struct Stack
 {
 #if DEBUG
-    const bool ShowDebugMessages = false;
+    const bool ShowDebugMessages = true;
 #else    
     const bool ShowDebugMessages = false;
 #endif
@@ -219,7 +219,7 @@ public readonly ref struct Stack
     public Stack PushStackOp(Func<Stack, Stack, Stack> op) =>
         Initialised
             ? PushObj(op, typeof(Func<Stack, Stack, Stack>).MetadataToken)
-            : Initialise().PushObj(op, typeof(Func<Stack, Stack, Stack>).MetadataToken);
+            : Initialise().PushStackOp(op);
 
     Stack PushObj<A>(A value, int metadataToken)
     {

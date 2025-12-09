@@ -133,10 +133,7 @@ public readonly ref struct Parsec<E, T, A>
     public Parsec<E, T, B> Map<B>(Func<A, B> f)
         where B : allows ref struct 
     {
-        // We have a byte-code, so we can't have more than 255 objects in our parser.
         var constIx = Constants.Count;
-        if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
-
         var instrs = Instructions.Add(OpCode.Invoke)
                                  .AddConstantId(constIx)
                                  .AddConstantId(constIx + 1);
@@ -178,10 +175,7 @@ public readonly ref struct Parsec<E, T, A>
     public Parsec<E, T, B> Bind<B>(Func<A, Parsec<E, T, B>> bind)
         where B : allows ref struct 
     {
-        // We have a byte-code, so we can't have more than 255 objects in our parser.
         var constIx = Constants.Count;
-        if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
-        
         var instrs = Instructions.Add(OpCode.Invoke)
                                  .AddConstantId(constIx)
                                  .AddConstantId(constIx + 1);
@@ -226,10 +220,7 @@ public readonly ref struct Parsec<E, T, A>
         where B : allows ref struct 
         where C : allows ref struct 
     {
-        // We have a byte-code, so we can't have more than 255 objects in our parser.
         var constIx = Constants.Count;
-        if(constIx >= byte.MaxValue) throw new ArgumentException("Too many objects");
-        
         var instrs = Instructions.Add(OpCode.InvokeM)
                                  .AddConstantId(constIx)
                                  .AddConstantId(constIx + 1)
