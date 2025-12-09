@@ -29,15 +29,32 @@ public static class Module<E, T>
 
     public static Parsec<E, T, A> @try<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
-        new (p.Instructions.Cons(OpCode.Try), p.Constants);    
+        new (p.Instructions.Cons(OpCode.Try), p.Constants);
 
-    public static Parsec<E, T, A> choose<A>(Parsec<E, T, A> p1, Parsec<E, T, A> p2)  
-        where A : allows ref struct =>
-        new (p1.Instructions
-               .Add(OpCode.Or)
-               .AddConstantId(p1.Constants.Count)
-               .Add(p2.Instructions.Span()), 
-             p1.Constants.Append(p2.Constants));    
+    public static Parsec<E, T, A> choose<A>(Parsec<E, T, A> p1, Parsec<E, T, A> p2)
+        where A : allows ref struct
+    {
+        // Next set of instruction to run if the first set fails
+        var nspan = p2.Instructions.Span();
+
+        // Total number of bytes in the new instruction set.  This will allow
+        // us to jump over the second instruction set if the first succeeds.
+        var next = nspan.Length + Bytes.ConstantIdSize + 4 /* this offset size */; 
+        
+        // Concatenate the instruction sets with meta-data in-between that
+        // delimits the two sets and also gives us enough information to skip
+        // the second set if the first succeeds.
+        var ninstrs = p1.Instructions
+                        .Add(OpCode.Or)
+                        .AddInt32(next)
+                        .AddConstantId(p1.Constants.Count)
+                        .Add(p2.Instructions.Span());
+
+        // Concatenate the constant sets
+        var nconstants = p1.Constants.Append(p2.Constants);
+        
+        return new(ninstrs, nconstants);
+    }
 
     public static Parsec<E, T, A> lookAhead<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>

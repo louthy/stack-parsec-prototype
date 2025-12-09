@@ -15,7 +15,7 @@ namespace StackParsecPrototype;
 public readonly ref struct Stack
 {
 #if DEBUG
-    const bool ShowDebugMessages = false;
+    const bool ShowDebugMessages = true;
 #else    
     const bool ShowDebugMessages = false;
 #endif

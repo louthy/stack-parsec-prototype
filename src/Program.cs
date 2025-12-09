@@ -60,7 +60,7 @@ var p12 = from x in token('a') | token('x')
 
 var p13 = error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | pure(2);
 
-var r = p7.Parse("abcxyzabc", stackMem);
+var r = p12.Parse("abcxyzabc", stackMem, Seq);
 
 showResult(r);
 

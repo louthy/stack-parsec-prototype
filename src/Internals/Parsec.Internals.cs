@@ -80,7 +80,7 @@ static partial class ParsecInternals<E, T, A>
                     // Read the pure constant and push it onto the stack.
                     stack = stack.ReadFromAndPush(constants, instructions[pc] + constantOffset)
                                  .PushOK();
-                    pc+=2;
+                    pc += Bytes.ConstantIdSize;
                     break;
 
                 case OpCode.Error:
@@ -157,19 +157,43 @@ static partial class ParsecInternals<E, T, A>
                         }
                         else
                         {
-                            // No more instructions, or, look ahead, if there's an OR instruction,
-                            // then we're done, because we succeeded here.
-                            if (pc >= instructions.Count || instructions[pc] == (byte)OpCode.Or)
+                            while (true)
                             {
-                                stack = stack.PushOK();
-                                return taken;
+                                if (pc >= instructions.Count)
+                                {
+                                    // No more instructions, so return a successful result.
+                                    stack = stack.PushOK();
+                                    return taken;
+                                }
+
+                                // No more instructions, or, look ahead, if there's an OR instruction,
+                                // then we're done, because we succeeded here.
+                                if (instructions[pc] == (byte)OpCode.Or)
+                                {
+                                    // Skip the OR instruction
+                                    pc++;
+
+                                    if (pc + 4 > instructions.Count)
+                                    {
+                                        // If we get here, then the instructions are corrupt
+                                        throw new Exception("Or: expected constant offset");
+                                    }
+                                    
+                                    // Read the offset 
+                                    var offset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
+
+                                    // Skip the offset, the constant-offset, and the rhs instructions 
+                                    pc += offset;
+                                }
+                                else
+                                {
+                                    break;
+                                }
                             }
-                            else
-                            {
-                                // If there isn't a ParserCore on the stack, then exit the loop and keep
-                                // running the instructions.
-                                loop = false;
-                            }
+
+                            // If there isn't a ParserCore on the stack, then exit the loop and keep
+                            // running the instructions.
+                            loop = false;
                         }
                         break;
                     
@@ -184,12 +208,12 @@ static partial class ParsecInternals<E, T, A>
                         // Look ahead, we need an OR instruction to continue
                         if (instructions[pc] == (byte)OpCode.Or)
                         {
-                            // Skip the OR
-                            pc++;
+                            // Skip the OR and the int32 offset value (that is only needed if we had succeeded)
+                            pc += 5;
                             
                             // Constants offset
-                            constantOffset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
-                            pc += 4;
+                            constantOffset = BitConverter.ToInt16(instructions.Span().Slice(pc, Bytes.ConstantIdSize));
+                            pc += Bytes.ConstantIdSize;
 
                             // Pop the error off the stack
                             if (stack.PopError<E, T>(out var err))

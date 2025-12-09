@@ -28,6 +28,7 @@ namespace StackParsecPrototype;
 /// </remarks>
 public readonly ref struct Bytes
 {
+    public const int ConstantIdSize = 2;
     const int InitialSize = 32;
     
     readonly Span<byte> values;
@@ -179,7 +180,7 @@ public readonly ref struct Bytes
         if(value < 0) throw new IndexOutOfRangeException("ConstantId must be >= 0");
         if(value > ushort.MaxValue) throw new IndexOutOfRangeException("ConstantId must be less than 65536");
         var v = (ushort)value;
-        Span<byte> buffer = stackalloc byte[2];
+        Span<byte> buffer = stackalloc byte[ConstantIdSize];
         BitConverter.TryWriteBytes(buffer, v);
         return Add(buffer);
     }
@@ -187,8 +188,7 @@ public readonly ref struct Bytes
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetConstantId(ref int pc, int offset)
     {
-        //Replaces original: instructions[pc++] + constantOffset
-        ReadOnlySpan<byte> instrs = Span(pc, 2);
+        ReadOnlySpan<byte> instrs = Span(pc, ConstantIdSize);
         pc += 2;
         return BitConverter.ToUInt16(instrs) + offset;
     }
