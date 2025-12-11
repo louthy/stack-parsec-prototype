@@ -1,11 +1,10 @@
 ﻿using LanguageExt.Common;
 using LanguageExt.RefParsec;
+using static LanguageExt.Prelude;
 using static LanguageExt.RefParsec.Module<LanguageExt.Common.Error, char>;
 using static LanguageExt.RefParsec.CharModule<LanguageExt.Common.Error>;
 
 StackTests.Run();
-
-Span<byte> stackMem = stackalloc byte[1024];
 
 var p0 = pure(1) | pure(2) | pure(3);
 
@@ -65,7 +64,7 @@ var p13 = p13a | p13b;
 
 var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);
 
-var r = p1.Parse("abcxyzabc", stackMem);
+var r = p5.Parse("abcxyzabc");
 
 showResult(r);
 

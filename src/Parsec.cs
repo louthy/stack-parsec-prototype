@@ -15,6 +15,8 @@ public readonly ref struct Parsec<E, T, A>
     where T : IEqualityOperators<T, T, bool>
     where A : allows ref struct
 {
+    const int defaultStackSize = 4096;
+    
     internal readonly ParsecCore Core; 
     
     internal Bytes Instructions => 
@@ -33,11 +35,43 @@ public readonly ref struct Parsec<E, T, A>
     /// Parse a stream of tokens
     /// </summary>
     /// <param name="stream">Stream of tokens</param>
-    /// <param name="stackMem">Memory to use for the stack</param>
+    /// <param name="f">Function to map away from a possible ref type to something concrete</param>
+    /// <returns>Result of the parsing operation</returns>
+    public ParserResult<E, T, B> Parse<B>(
+        ReadOnlySpan<T> stream, 
+        Func<A, B> f)
+    {
+        Span<byte> stackMem = stackalloc byte[defaultStackSize];
+        return Parse(stream, stackMem, "", f);
+    }
+
+    /// <summary>
+    /// Parse a stream of tokens
+    /// </summary>
+    /// <param name="stream">Stream of tokens</param>
     /// <param name="sourceName">Name of the source, usually a source-file name</param>
     /// <param name="f">Function to map away from a possible ref type to something concrete</param>
     /// <returns>Result of the parsing operation</returns>
-    public ParserResult<E, T, B> Parse<B>(ReadOnlySpan<T> stream, Span<byte> stackMem, Func<A, B> f) =>
+    public ParserResult<E, T, B> Parse<B>(
+        ReadOnlySpan<T> stream, 
+        string sourceName, 
+        Func<A, B> f)
+    {
+        Span<byte> stackMem = stackalloc byte[defaultStackSize];
+        return Parse(stream, stackMem, sourceName, f);
+    }
+
+    /// <summary>
+    /// Parse a stream of tokens
+    /// </summary>
+    /// <param name="stream">Stream of tokens</param>
+    /// <param name="stackMem">Memory to use for the stack</param>
+    /// <param name="f">Function to map away from a possible ref type to something concrete</param>
+    /// <returns>Result of the parsing operation</returns>
+    public ParserResult<E, T, B> Parse<B>(
+        ReadOnlySpan<T> stream, 
+        Span<byte> stackMem, 
+        Func<A, B> f) =>
         Parse(stream, stackMem, "", f);
 
     /// <summary>
@@ -48,7 +82,11 @@ public readonly ref struct Parsec<E, T, A>
     /// <param name="sourceName">Name of the source, usually a source-file name</param>
     /// <param name="f">Function to map away from a possible ref type to something concrete</param>
     /// <returns>Result of the parsing operation</returns>
-    public ParserResult<E, T, B> Parse<B>(ReadOnlySpan<T> stream, Span<byte> stackMem, string sourceName, Func<A, B> f) =>
+    public ParserResult<E, T, B> Parse<B>(
+        ReadOnlySpan<T> stream, 
+        Span<byte> stackMem, 
+        string sourceName, 
+        Func<A, B> f) =>
         Parse(stream,
               stackMem,
               sourceName,
@@ -61,7 +99,26 @@ public readonly ref struct Parsec<E, T, A>
     /// Parse a stream of tokens
     /// </summary>
     /// <param name="stream">Stream of tokens</param>
-    /// <param name="stackMem">Memory to use for the stack</param>
+    /// <param name="cok">Consumed OK handler (parsed input tokens into a value)</param>
+    /// <param name="eok">Empty OK handler (didn't parse any tokens but was able to yield a successful result)</param>
+    /// <param name="cerr">Consumed error handler (usually fatal)</param>
+    /// <param name="eerr">Empty error handler (often recoverable)</param>
+    /// <returns>Result of the parsing operation</returns>
+    public B Parse<B>(
+        ReadOnlySpan<T> stream,
+        Func<A, State<E, T>, B> cok,
+        Func<A, State<E, T>, B> eok,
+        Func<ParseError<E, T>, State<E, T>, B> cerr,
+        Func<ParseError<E, T>, State<E, T>, B> eerr)
+    {
+        Span<byte> stackMem = stackalloc byte[defaultStackSize];
+        return Parse(stream, stackMem, "", cok, eok, cerr, eerr);
+    }
+
+    /// <summary>
+    /// Parse a stream of tokens
+    /// </summary>
+    /// <param name="stream">Stream of tokens</param>
     /// <param name="sourceName">Name of the source, usually a source-file name</param>
     /// <param name="cok">Consumed OK handler (parsed input tokens into a value)</param>
     /// <param name="eok">Empty OK handler (didn't parse any tokens but was able to yield a successful result)</param>
@@ -70,12 +127,15 @@ public readonly ref struct Parsec<E, T, A>
     /// <returns>Result of the parsing operation</returns>
     public B Parse<B>(
         ReadOnlySpan<T> stream,
-        Span<byte> stackMem,
+        string sourceName,
         Func<A, State<E, T>, B> cok,
         Func<A, State<E, T>, B> eok,
         Func<ParseError<E, T>, State<E, T>, B> cerr,
-        Func<ParseError<E, T>, State<E, T>, B> eerr) =>
-        Parse(stream, stackMem, "", cok, eok, cerr, eerr);
+        Func<ParseError<E, T>, State<E, T>, B> eerr)
+    {
+        Span<byte> stackMem = stackalloc byte[defaultStackSize];
+        return Parse(stream, stackMem, sourceName, cok, eok, cerr, eerr);
+    }
 
     /// <summary>
     /// Parse a stream of tokens
