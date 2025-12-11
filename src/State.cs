@@ -1,12 +1,12 @@
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 public readonly ref struct State<E, T>
 {
     public readonly ReadOnlySpan<T> Input;
-    public readonly SourcePosRef Position;
+    public readonly SourcePos Position;
     public readonly RefSeq<ParseError<E, T>> ParseErrors;
 
-    public State(ReadOnlySpan<T> input, SourcePosRef position, RefSeq<ParseError<E, T>> parseErrors)
+    public State(ReadOnlySpan<T> input, SourcePos position, RefSeq<ParseError<E, T>> parseErrors)
     {
         Input = input;
         Position = position;

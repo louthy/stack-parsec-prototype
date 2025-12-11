@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -22,12 +22,17 @@ static partial class ParsecInternals<E, T, A>
 
         switch (stack.PeekReply())
         {
-            case (StackReply.OK, _, _):
+            case StackReply.OK:
             {
                 stack = stack.Pop();
                 if (stack.Peek<A>(out var val))
                 {
                     stack = stack.Pop();
+
+                    #if DEBUG
+                    if(stack.Top > 0) throw new Exception("Stack hasn't been properly unwound.  Suggests a bug somewhere.");
+                    #endif
+                    
                     return taken == 0
                         ? emptyOk(val, state)
                         : consumedOk(val, state);
@@ -39,11 +44,15 @@ static partial class ParsecInternals<E, T, A>
             }
             
             default:
-                if (ParseErrorStack.PopParseError<E, T>(ref stack, out var err))
+                if (stack.PopError<E, T>(out var err))
                 {
-                    return err.Consumed
-                               ? consumedErr(err, state)
-                               : emptyErr(err, state);
+                    #if DEBUG
+                    if(stack.Top > 0) throw new Exception("Stack hasn't been properly unwound.  Suggests a bug somewhere.");
+                    #endif
+    
+                    return taken == 0
+                               ? emptyErr(err, state)
+                               : consumedErr(err, state);
                 }
                 else
                 {
@@ -62,14 +71,15 @@ static partial class ParsecInternals<E, T, A>
     static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc)
     {
         var constantOffsetReset = constantOffset;
-        var taken               = 0;
+        var initialOffset       = state.Position.Offset;
+        
         while(true)
         {
             // No more instructions?
             if (pc >= instructions.Count)
             {
                 stack = stack.PushOK();
-                return taken;
+                return state.Position.Offset - initialOffset;
             }
             
             // Next instruction
@@ -85,15 +95,15 @@ static partial class ParsecInternals<E, T, A>
 
                 case OpCode.Error:
                     // Read the error constant and push it onto the stack.
-                    ProcessError(instructions, constants, constantOffset, state, ref stack, ref pc, taken);
+                    ProcessError(instructions, constants, constantOffset, state, ref stack, ref pc);
                     break;
                 
                 case OpCode.Token:
-                    ProcessToken(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessToken(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
 
                 case OpCode.Tokens:
-                    ProcessTokens(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessTokens(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
                 
                 case OpCode.Invoke:
@@ -101,35 +111,35 @@ static partial class ParsecInternals<E, T, A>
                     break;
 
                 case OpCode.InvokeM:
-                    ProcessInvokeM(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessInvokeM(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
 
                 case OpCode.Take1:
-                    ProcessTake1(ref state, ref stack, ref taken);
+                    ProcessTake1(ref state, ref stack);
                     break;
 
                 case OpCode.TakeN:
-                    ProcessTakeN(instructions, ref state, ref stack, ref pc, ref taken);
+                    ProcessTakeN(instructions, ref state, ref stack, ref pc);
                     break;
 
                 case OpCode.TakeWhile1:
-                    ProcessTakeWhile1(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessTakeWhile1(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
 
                 case OpCode.TakeWhile:
-                    ProcessTakeWhile(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessTakeWhile(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
 
                 case OpCode.Satisfy:
-                    ProcessSatisfy(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessSatisfy(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
 
                 case OpCode.OneOf:
-                    ProcessOneOf(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessOneOf(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
                 
                 case OpCode.Try:
-                    ProcessTry(instructions, constants, constantOffset, ref state, ref stack, ref pc, ref taken);
+                    ProcessTry(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
                 
                 default:
@@ -139,9 +149,11 @@ static partial class ParsecInternals<E, T, A>
             var loop = true;
             while (loop)
             {
+                var taken = state.Position.Offset - initialOffset;
+                
                 switch (stack.PeekReply())
                 {
-                    case (StackReply.OK, _, _):
+                    case StackReply.OK:
                         
                         // We're not midway through an OR instruction, so reset the constant offset
                         constantOffset = constantOffsetReset;
@@ -157,7 +169,7 @@ static partial class ParsecInternals<E, T, A>
                             stack = stack.Pop();
 
                             // Run the parser
-                            taken += ParseUntyped(p.Instructions, p.Constants, 0, ref state, ref stack);
+                            ParseUntyped(p.Instructions, p.Constants, 0, ref state, ref stack);
                         }
                         else
                         {
@@ -201,7 +213,12 @@ static partial class ParsecInternals<E, T, A>
                         }
                         break;
                     
-                    case (StackReply.EmptyError, var errType, var expected):
+                    case StackReply.Error:
+                        if (taken > 0)
+                        {
+                            // We've consumed, which makes an error fatal, so early-out
+                            return taken;
+                        }
                         
                         // No more instructions?
                         if (pc >= instructions.Count)
@@ -219,37 +236,8 @@ static partial class ParsecInternals<E, T, A>
                             constantOffset = BitConverter.ToInt16(instructions.Span().Slice(pc, Bytes.ConstantIdSize));
                             pc += Bytes.ConstantIdSize;
 
-                            // Pop the error off the stack
-                            if (stack.PopError<E, T>(out var err))
-                            {
-                                // TODO: This is the original strategy before I serialised the errors to the 
-                                //       stack, rather than create one large ParseErrorRef.  
-                                //
-                                //    *  This is now allocating a new ParseError when really we don't
-                                //       need it right now.  
-                                //
-                                //    *  What we know is that the error is on the stack and we may need
-                                //       to collect multiple errors.
-                                //
-                                //    *  So a future strategy is to leave it on the stack and let multiple errors
-                                //       accumulate.  We can then collect them at the end of the process and do
-                                //       a single round of allocations at that point.
-                                //
-                                //    *  We could also have a set of ConsumedOK, ConsumedErr, EmptyOK, EmptyErr 
-                                //       delegates like Megaparsec and invoke them directly based om the stack
-                                //       values.  That might mean no allocation of ParseError types.
-                                
-                                // Collect the error
-                                //collectedErrors = collectedErrors.Combine(err);
-                                
-                                // Continue parsing
-                                loop = false;
-                                break;
-                            }
-                            else
-                            {
-                                throw new Exception("Or: expected ParseErrorRef on the stack");
-                            }
+                            loop = false;
+                            break;
                         }
                         else
                         {

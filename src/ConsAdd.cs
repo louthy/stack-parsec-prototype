@@ -1,4 +1,4 @@
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 internal sealed class ConsAdd
 {

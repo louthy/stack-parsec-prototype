@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -24,15 +24,16 @@ static partial class ParsecInternals<E, T, A>
         int constantOffset, 
         ref State<E, T> state, 
         ref Stack stack, 
-        ref int pc, 
-        ref int taken)
+        ref int pc)
     {
         var start = state.Position.Offset;
         var count = 0;
         var data  = state.Input.Slice(start);
         if (data.Length < 1)
         {
-            stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
+            stack = stack.PushTerminator(state, out var pos)
+                         .PushEndOfInput(false)
+                         .PushErr(pos);
             return;
         }
         
@@ -43,13 +44,15 @@ static partial class ParsecInternals<E, T, A>
                 if (count >= state.Input.Length || !predicate(data[count]))
                 {
                     state = state.Next(count);
-                    taken += count;
 
                     if (count == 0)
                     {
                         // Unexpected token
                         var t = data.Slice(0, 1);
-                        stack = ParseErrorStack.Token(t[0], false, false, state.Position, stack);
+                        
+                        stack = stack.PushTerminator(state, out var pos)
+                                     .PushToken(t[0], false)  // unexpected token 
+                                     .PushErr(pos);
                     }
                     else
                     {

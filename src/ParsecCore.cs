@@ -1,4 +1,4 @@
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// This is the inner-structure of a parser, It contains the parsing instructions byte-code

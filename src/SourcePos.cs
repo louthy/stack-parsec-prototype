@@ -1,10 +1,13 @@
 using System.Numerics;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 public readonly struct SourcePos(string name, int offset, int line, int column) :
-    IEqualityOperators<SourcePos, SourcePos, bool>
+    IComparisonOperators<SourcePos, SourcePos, bool>,
+    IEquatable<SourcePos>,
+    IComparable<SourcePos>
 {
+
     /// <summary>
     /// Create a source position from a name
     /// </summary>
@@ -36,7 +39,19 @@ public readonly struct SourcePos(string name, int offset, int line, int column) 
     /// </summary>
     public int Column { get; } = 
         column;
-    
+
+    public bool Equals(SourcePos other) =>
+        Offset == other.Offset &&
+        Name   == other.Name;
+
+    public int CompareTo(SourcePos other)
+    {
+        var cmp = string.Compare(Name, other.Name, StringComparison.Ordinal);
+        return cmp == 0
+                   ? Offset.CompareTo(other.Offset)
+                   : cmp;
+    }
+
     /// <summary>
     /// Convert to string
     /// </summary>
@@ -61,7 +76,6 @@ public readonly struct SourcePos(string name, int offset, int line, int column) 
     /// <summary>
     /// Move to the next token
     /// </summary>
-    /// <returns></returns>
     public SourcePos Next(int amount) =>
         new (Name, Offset + amount, Line, Column + amount);
 
@@ -72,4 +86,22 @@ public readonly struct SourcePos(string name, int offset, int line, int column) 
     public static bool operator !=(SourcePos left, SourcePos right) =>
         left.Offset != right.Offset ||
         left.Name   != right.Name;
+
+    public static bool operator >(SourcePos left, SourcePos right) =>
+        left.CompareTo(right) > 0;
+
+    public static bool operator >=(SourcePos left, SourcePos right) =>
+        left.CompareTo(right) >= 0;
+
+    public static bool operator <(SourcePos left, SourcePos right) =>
+        left.CompareTo(right) < 0;
+
+    public static bool operator <=(SourcePos left, SourcePos right) =>
+        left.CompareTo(right) <= 0;
+    
+    public override bool Equals(object? obj) =>
+        obj is SourcePos other && Equals(other);
+
+    public override int GetHashCode() =>
+        HashCode.Combine(Name, Offset);
 }

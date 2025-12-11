@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 public static class ArrayExtensions
 {

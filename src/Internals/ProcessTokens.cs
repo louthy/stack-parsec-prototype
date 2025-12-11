@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -24,8 +24,7 @@ static partial class ParsecInternals<E, T, A>
         int constantOffset, 
         ref State<E, T> state, 
         ref Stack stack, 
-        ref int pc, 
-        ref int taken)
+        ref int pc)
     {
         // Get the tokens
         if (constants.At<ReadOnlySpan<T>>(instructions.GetConstantId(ref pc, constantOffset), out var tokens))
@@ -33,22 +32,26 @@ static partial class ParsecInternals<E, T, A>
             var offset = state.Position.Offset;
             if (offset + tokens.Length > state.Input.Length)
             {
-                stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
+                stack = stack.PushTerminator(state, out var pos)
+                             .PushEndOfInput(false)
+                             .PushErr(pos);
             }
             else
             {
-                var read = state.Input.Slice(state.Position.Offset, tokens.Length);
+                var read   = state.Input.Slice(state.Position.Offset, tokens.Length);
                 for (var i = 0; i < tokens.Length; i++)
                 {
                     if (read[i] == tokens[i])
                     {
                         state = state.NextToken;
-                        taken++;
                     }
                     else
                     {
-                        // TODO: Show the expected `tokens[i]` 
-                        stack = ParseErrorStack.Token(read[i], i > 0, false, state.Position, stack);
+                        // Unexpected token
+                        stack = stack.PushTerminator(state, out var pos)
+                                     .PushToken(read[i], false)         // unexpected token 
+                                     .PushToken(tokens[i], true)        // expected token
+                                     .PushErr(pos);
                         return;
                     }
                 }

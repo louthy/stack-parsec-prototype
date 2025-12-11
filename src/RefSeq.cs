@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// A collection of values that's managed as a ref-struct (entirely on the stack).  It is backed by a Span&lt;T&gt;
@@ -26,7 +26,7 @@ namespace StackParsecPrototype;
 /// this goes against all of what's written above, but this type allows for the lock-free mutation of the backing span,
 /// in the most common use-case, and the cloning at other times.  It is 4 bytes in total, so shouldn't be a GC threat.
 /// </remarks>
-public readonly ref struct RefSeq<T> : Stream<RefSeq<T>, T>
+public readonly ref struct RefSeq<T>
 {
     const int InitialSize = 32;
     

@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// This is a stack that can store either objects, values, or even ref-struct references.  It works like

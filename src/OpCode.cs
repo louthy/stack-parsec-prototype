@@ -1,4 +1,4 @@
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 public enum OpCode : byte
 {

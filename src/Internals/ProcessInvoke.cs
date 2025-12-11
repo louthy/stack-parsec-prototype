@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>

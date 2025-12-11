@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 public static class ParsecExtensions
 {

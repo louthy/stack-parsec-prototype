@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -24,8 +24,7 @@ static partial class ParsecInternals<E, T, A>
         int constantOffset,
         ref State<E, T> state, 
         ref Stack stack, 
-        ref int pc,
-        ref int taken)
+        ref int pc)
     {
         // Get the delegate to invoke from the constants
         if (constants.At<Func<Stack, Stack, Stack>>(instructions.GetConstantId(ref pc, constantOffset), out var go))

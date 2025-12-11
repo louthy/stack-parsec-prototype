@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -24,8 +24,7 @@ static partial class ParsecInternals<E, T, A>
         int constantOffset, 
         ref State<E, T> state, 
         ref Stack stack, 
-        ref int pc, 
-        ref int taken)
+        ref int pc)
     {
         // Get the tokens
         if (constants.At<T>(instructions.GetConstantId(ref pc, constantOffset), out var token))
@@ -33,7 +32,9 @@ static partial class ParsecInternals<E, T, A>
             var offset = state.Position.Offset;
             if (offset + 1 > state.Input.Length)
             {
-                stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
+                stack = stack.PushTerminator(state, out var pos)
+                             .PushEndOfInput(false)
+                             .PushErr(pos);
             }
             else
             {
@@ -41,14 +42,16 @@ static partial class ParsecInternals<E, T, A>
                 if (read[0] == token)
                 {
                     state = state.NextToken;
-                    taken++;
                     stack = stack.Push(read[0])
                                  .PushOK();
                 }
                 else
                 {
-                    // TODO: Show the expected `token` 
-                    stack = ParseErrorStack.Token(read[0], false, false, state.Position, stack);
+                    // Unexpected token
+                    stack = stack.PushTerminator(state, out var pos)
+                                 .PushToken(read[0], false) // unexpected token 
+                                 .PushToken(token, true)    // expected token
+                                 .PushErr(pos);
                 }
             }
         }

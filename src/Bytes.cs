@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// Bytes collection.  It is backed by a Span&lt;byte&gt; which you can provide yourself (so, you can stack allocate it).

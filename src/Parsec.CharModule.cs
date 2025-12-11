@@ -1,4 +1,4 @@
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// Operations specific to character parsers

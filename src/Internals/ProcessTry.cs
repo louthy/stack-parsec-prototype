@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -24,16 +24,14 @@ static partial class ParsecInternals<E, T, A>
         int constantOffset, 
         ref State<E, T> state, 
         ref Stack stack, 
-        ref int pc, 
-        ref int taken)
+        ref int pc)
     {
         var savedState = state;
-        var consts     = constants;
-        var npc        = pc;
-        var ntaken     = ParseUntyped(instructions, consts, constantOffset, ref state, ref stack, ref npc);
+        var savedPC    = pc;
+        var ntaken     = ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
         if (ntaken == 0)
         {
-            // Not consumed, so we don't care if it succeeded or not. Empty Ok and Empty Error are both fine.
+            // Not consumed, so we don't care if it succeeded or not. Empty OK and Empty Error are both fine.
             return;
         }
         
@@ -43,24 +41,13 @@ static partial class ParsecInternals<E, T, A>
             {
                 case StackReply.OK:
                     // Success, so we're done
-                    taken += ntaken;
-                    pc = npc;
                     return;
                 
-                case StackReply.EmptyError:
+                case StackReply.Error:
                     // Reset the state back to before we tried parsing
+                    pc = savedPC;
                     state = savedState;
                     break;
-                
-                case StackReply.ConsumedError:
-                    
-                    // Reset the state back to before we tried parsing
-                    state = savedState;
-                    
-                    // Return the error as-is but with 'empty error' status
-                    stack = stack.Pop().Push(StackReply.EmptyError);
-                    break;
-                    
             }
         }
         else

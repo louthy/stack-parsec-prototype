@@ -1,8 +1,8 @@
 ﻿using LanguageExt.Common;
-using StackParsecPrototype;
+using LanguageExt.RefParsec;
 using static LanguageExt.Prelude;
-using static StackParsecPrototype.Module<LanguageExt.Common.Error, char>;
-using static StackParsecPrototype.CharModule<LanguageExt.Common.Error>;
+using static LanguageExt.RefParsec.Module<LanguageExt.Common.Error, char>;
+using static LanguageExt.RefParsec.CharModule<LanguageExt.Common.Error>;
 
 Span<byte> stackMem = stackalloc byte[1024];
 
@@ -58,10 +58,13 @@ var p12 = from x in token('a') | token('x')
           from y in token('b') | token('y')
           select (x, y);
 
-var p13 = error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | pure(2);
-p13 = p13.Map(x => x * 2);
+var p13a = (error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | error<int>(Errors.TimedOut)).Map(x => x * 2);
+var p13b = (error<int>(Errors.EndOfStream)   | error<int>(Errors.SinkFull)  | pure(7)).Map(x => x * 2);
+var p13 = p13a | p13b;
 
-var r = p13.Parse("abcxyzabc", stackMem);
+var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);
+
+var r = p14.Parse("abcxyzabc", stackMem);
 
 showResult(r);
 

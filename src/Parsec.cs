@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// Parser combinator ref-struct
@@ -101,7 +101,7 @@ public readonly ref struct Parsec<E, T, A>
         var instructions = Instructions;
         var constants    = Constants;
         var errors       = RefSeq<ParseError<E, T>>.Empty;
-        var state        = new State<E, T>(stream, SourcePosRef.FromName(sourceName), errors);
+        var state        = new State<E, T>(stream, SourcePos.FromName(sourceName), errors);
 
         return ParsecInternals<E, T, A>.Parse(instructions, constants, 0, state, stack, cok, eok, cerr, eerr);
     }

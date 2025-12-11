@@ -1,7 +1,7 @@
 using System.Numerics;
 using LanguageExt;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// Core primitive parsers

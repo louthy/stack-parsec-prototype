@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -16,7 +16,6 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="state">Parser state</param>
     /// <param name="stack">VM stack</param>
     /// <param name="pc">Program counter</param>
-    /// <param name="taken">Tokens read, so far</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void ProcessError(
         Bytes instructions, 
@@ -24,15 +23,14 @@ static partial class ParsecInternals<E, T, A>
         int constantOffset, 
         in State<E, T> state, 
         ref Stack stack, 
-        ref int pc, 
-        int taken)
+        ref int pc)
     {
-        if (constants.At<E>(instructions.GetConstantId(ref pc, constantOffset), out var err))
+        var cid = instructions.GetConstantId(ref pc, constantOffset);
+        if (constants.At<E>(cid, out var err))
         {
-            stack = ParseErrorStack.Custom(err, taken > 0, true, state.Position, stack);
-            
-            // stack = stack.Push(ParseErrorRef<E, T>.Custom(state.Position, errs))
-            //              .Push(taken == 0 ? StackReply.EmptyError : StackReply.ConsumedError);
+            stack = stack.PushTerminator(state, out var pos)
+                         .PushCustom(err)
+                         .PushErr(pos);
         }
         else
         {

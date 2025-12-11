@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -20,22 +20,22 @@ static partial class ParsecInternals<E, T, A>
         Bytes instructions, 
         ref State<E, T> state, 
         ref Stack stack, 
-        ref int pc, 
-        ref int taken)
+        ref int pc)
     {
         var offset = state.Position.Offset;
         var n      = BitConverter.ToInt32(instructions.Slice(pc, 4).Span());
         pc += 4;
         if (offset + n > state.Input.Length)
         {
-            stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
+            stack = stack.PushTerminator(state, out var pos)
+                         .PushEndOfInput(false)
+                         .PushErr(pos);
         }
         else
         {
             var ts = state.Input.Slice(offset, n);
             stack = stack.Push(ts).PushOK();
             state = state.Next(n);
-            taken += n;
         }
     }
 }

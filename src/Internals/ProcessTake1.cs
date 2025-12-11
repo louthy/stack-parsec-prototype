@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace StackParsecPrototype;
+namespace LanguageExt.RefParsec;
 
 static partial class ParsecInternals<E, T, A>
     where T : IEqualityOperators<T, T, bool>
@@ -14,19 +14,20 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="stack">VM stack</param>
     /// <param name="taken">Tokens read, so far</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ProcessTake1(ref State<E, T> state, ref Stack stack, ref int taken)
+    static void ProcessTake1(ref State<E, T> state, ref Stack stack)
     {
         var offset = state.Position.Offset;
         if (offset + 1 > state.Input.Length)
         {
-            stack = ParseErrorStack.EndOfInput(false, false, state.Position, stack);
+            stack = stack.PushTerminator(state, out var pos)
+                         .PushEndOfInput(false)
+                         .PushErr(pos);
         }
         else
         {
             stack = stack.Push(state.Input[state.Position.Offset])
                          .PushOK();
             state = state.NextToken;
-            taken++;
         }
     }
 }
