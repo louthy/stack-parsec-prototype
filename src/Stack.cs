@@ -19,15 +19,17 @@ public readonly ref struct Stack
 #else    
     const bool ShowDebugMessages = false;
 #endif
+    public const int headerSize = 8;
+    public const int indexEntrySize = 4;
+    public const int defaultStackSize = 64;
+    public const int objectEntryFlag = 0x10000000;
+    public const int objectEntryMask = objectEntryFlag - 1;
     
     readonly RefSeq<object?> objects;
     readonly Span<byte> memory;
     readonly int top;
     readonly int bottom;
     readonly int count;
-    const int headerSize = 8;
-    const int defaultStackSize = 32;
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Stack(Span<byte> memory)
     {
@@ -84,6 +86,12 @@ public readonly ref struct Stack
         get => count > 0;
     }
 
+    public RefSeq<object?> Objects
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => objects;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     Stack Initialise(int size = defaultStackSize)
     {
@@ -114,6 +122,28 @@ public readonly ref struct Stack
         return new Stack(objects, nmemory, top, bottom, ncount);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsObject(int ix)
+    {
+        if (!Initialised) return false;
+        var entryIndex = ix + 1 << 2;
+        if (entryIndex > bottom) return false;
+        var index = memory.Slice(count - entryIndex, 4);
+        var entry = BitConverter.ToInt32(index);
+        return (entry & objectEntryFlag) == objectEntryFlag;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool IsValueType(int ix)
+    {
+        if (!Initialised) return false;
+        var entryIndex = ix + 1 << 2;
+        if (entryIndex > bottom) return false;
+        var index = memory.Slice(count - entryIndex, 4);
+        var entry = BitConverter.ToInt32(index);
+        return (entry & objectEntryFlag) == 0;
+    }
+    
     public bool At<A>(int ix, out A returnValue)
         where A : allows ref struct
     {
@@ -122,48 +152,88 @@ public readonly ref struct Stack
             returnValue = default!;
             return false;
         }
-        var fourIx = ix + 1 << 2;
-        if (fourIx > bottom)
+        var entryIndex = ix + 1 << 2;
+        if (entryIndex > bottom)
         {
             returnValue = default!;
             return false;
         }
-        var index = memory.Slice(count - fourIx, 4);
-        var hdrix = BitConverter.ToInt32(index);
+        var index = memory.Slice(count - entryIndex, 4);
+        var entry = BitConverter.ToInt32(index);
+        
+        if ((entry & objectEntryFlag) == objectEntryFlag)
+        {
+            // This is an object index, so return the object
+            entry &= objectEntryMask;
 
-        var header        = memory.Slice(hdrix, 4);
-        var metadataToken = BitConverter.ToInt32(memory.Slice(hdrix + 4, 4));
+            if (objects[entry] is A x)
+            {
+                returnValue = x;
+                return true;
+            }
+            else
+            {
+                returnValue = default!;
+                return false;
+            }
+        }
+
+        var header        = memory.Slice(entry, 4);
+        var metadataToken = BitConverter.ToInt32(memory.Slice(entry + 4, 4));
         if (metadataToken != typeof(A).MetadataToken)
         {
             returnValue = default!;
             return false;
         }
-        
-        switch (BitConverter.ToInt32(header))
-        {
-            case var size when (size & 0xF0000000) == 0:
-                var structure = memory.Slice(hdrix - size, size);
-                returnValue = Unsafe.ReadUnaligned<A>(in structure.GetPinnableReference());
-                return true;
-            
-            case var objix when (objix & 0xF0000000) == 0x10000000:
-                objix &= 0xFFFFFFF;
-                if (objects[objix] is A x)
-                {
-                    returnValue = x;
-                    return true;
-                }
-                else
-                {
-                    returnValue = default!;
-                    return false;
-                }
-            
-            default:
-                throw new InvalidOperationException("Stack corrupted");
-        }        
+
+        var size = BitConverter.ToInt32(header);
+        var structure = memory.Slice(entry - size, size);
+        returnValue = Unsafe.ReadUnaligned<A>(in structure.GetPinnableReference());
+        return true;
     }
     
+    public ReadOnlySpan<byte> AtBytes(int index)
+    {
+        var span = AtBytesAndHeader(index);
+        return span.Slice(0, span.Length - headerSize);
+    }
+
+    public ReadOnlySpan<byte> AtBytesAndHeader(int index)
+    {
+        if (!Initialised) return ReadOnlySpan<byte>.Empty;
+        if(index >= Count) return ReadOnlySpan<byte>.Empty;
+        var bottomIndex = index + 1 << 2;
+        var entry = BitConverter.ToInt32(memory.Slice(count - bottomIndex, indexEntrySize));
+
+        if ((entry & objectEntryFlag) == objectEntryFlag)
+        {
+            // This is an object index, so return empty
+            return ReadOnlySpan<byte>.Empty;
+        }
+
+        var size = BitConverter.ToInt32(memory.Slice(entry, 4));
+        return memory.Slice(entry - size, size + headerSize);
+    }
+
+    public A? AtObject<A>(int index)
+    {
+        if (!Initialised) return default;
+        var bottomIndex = index + 1 << 2;
+        if (bottomIndex > bottom) return default;
+        var entry = BitConverter.ToInt32(memory.Slice(count - bottomIndex, indexEntrySize));
+        
+        if ((entry & objectEntryFlag) == 0)
+        {
+            // This is not an object index, so return null
+            return default;
+        }
+
+        entry &= objectEntryMask;
+        return objects[entry] is A x 
+                   ? x 
+                   : default;
+    }
+
     public Stack Push<A>(A value)
         where A : allows ref struct 
     {
@@ -172,7 +242,7 @@ public readonly ref struct Stack
         if (typeof(A).IsClass)
         {
             // Reference types are always stored as objects
-            return PushObj(Unsafe.As<A, object>(ref value), typeof(A).MetadataToken);
+            return PushObj(Unsafe.As<A, object>(ref value));
         }
         
         // Get the size of the value
@@ -185,9 +255,6 @@ public readonly ref struct Stack
     static Stack PushInternal<A>(A value, Stack stack, int size)
         where A : allows ref struct 
     {
-        // Clamp its maximum size
-        if ((size & 0xfffffff) != size) throw new ArgumentException("Value too large");
-        
         // Find the new top after the value and header
         var ntop    = stack.top    + size + headerSize;
         var nbottom = stack.bottom + 4;
@@ -218,168 +285,78 @@ public readonly ref struct Stack
 
     public Stack PushStackOp(Func<Stack, Stack, Stack> op) =>
         Initialised
-            ? PushObj(op, typeof(Func<Stack, Stack, Stack>).MetadataToken)
+            ? PushObj(op)
             : Initialise().PushStackOp(op);
 
-    Stack PushObj<A>(A value, int metadataToken)
+    Stack PushObj<A>(A value)
     {
         var stack = Expand(headerSize + 4);
-        return PushObjInternal(value, metadataToken, stack);
+        return PushObjInternal(value, stack);
     }
 
-    static Stack PushObjInternal<A>(A value, int metadataToken, Stack stack)
+    static Stack PushObjInternal<A>(A value, Stack stack)
     {
-        var ntop = stack.top + headerSize;
         var nbottom = stack.bottom + 4;
-        if (ntop > stack.count - nbottom) throw new InvalidOperationException("Stack overflow");
+        if (stack.top > stack.count - nbottom) throw new InvalidOperationException("Stack overflow");
 
         // Write the index at the end of the memory range
         var index = stack.memory.Slice(stack.count - nbottom, 4);
-        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(index), stack.top);
-
-        var objix = stack.objects.Count;
-        var header1 = stack.memory.Slice(stack.top, 4);
-        var header2 = stack.memory.Slice(stack.top + 4, 4);
-        objix |= 0x10000000;
-        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header1), objix); // Index into the objects array
-        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(header2), metadataToken); // Allows for simple type-checking
+        Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(index), stack.objects.Count | objectEntryFlag);
 
         if (ShowDebugMessages)
         {
-            Console.WriteLine($"PUSH ({metadataToken}): {typeof(A).Name}");
+            Console.WriteLine($"PUSH (obj): {typeof(A).Name}");
         }
-        
-        return new Stack(stack.objects.Add(value), stack.memory, ntop, nbottom, stack.count);
+        return new Stack(stack.objects.Add(value), stack.memory, stack.top, nbottom, stack.count);
     }
 
     public bool Peek<A>(out A returnValue)
-        where A : allows ref struct
-    {
-        if (!Initialised || top < headerSize)
-        {
-            returnValue = default!;
-            return false;
-        }
-        var header = memory.Slice(top - headerSize, 4);
-        var metadataToken = BitConverter.ToInt32(memory.Slice(top - headerSize + 4, 4));
-        if (metadataToken != typeof(A).MetadataToken)
-        {
-            if (ShowDebugMessages)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine(
-                    $"PEEK-FAIL (Stack {metadataToken} != Type {typeof(A).MetadataToken}): {typeof(A).Name}");
-                Console.ForegroundColor = ConsoleColor.White;
-            }
-            
-            returnValue = default!;
-            return false;
-        }
-        
-        switch (BitConverter.ToInt32(header))
-        {
-            case var size when (size & 0xF0000000) == 0:
-                var structure = memory.Slice(top - size - headerSize, size);
-                returnValue = Unsafe.ReadUnaligned<A>(in structure.GetPinnableReference());
-                return true;
-            
-            case var objix when (objix & 0xF0000000) == 0x10000000:
-                var ix = objix & 0xFFFFFFF;
-                if (ix == objects.Count - 1)
-                {
-                    if (objects[ix] is A x)
-                    {
-                        returnValue = x;
-                        return true;
-                    }
-                    else
-                    {
-                        if (ShowDebugMessages)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine(
-                                $"PEEK-FAIL ({metadataToken}): Stack {objects[ix]?.GetType().Name} != Type {typeof(A).Name}");
-                            Console.ForegroundColor = ConsoleColor.White;
-                        }
-                        returnValue = default!;
-                        return false;
-                    }
-                }
-                else
-                {
-                    if (ShowDebugMessages)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine(
-                            $"PEEK-FAIL ({metadataToken}): {typeof(A).Name} - not at the top of the stack");
-                        Console.ForegroundColor = ConsoleColor.White;
-                    }
-                    returnValue = default!;
-                    return false;
-                }
-            
-            default:
-                throw new InvalidOperationException("Stack corrupted");
-        }
-    }
+        where A : allows ref struct =>
+        At(Count - 1, out returnValue);
 
     public Stack Pop()
     {
-        if (!Initialised) throw new InvalidOperationException("Stack underflow");
-        if (top < headerSize) throw new InvalidOperationException("Stack underflow");
-        var header = memory.Slice(top - headerSize, 4);
-        switch (BitConverter.ToInt32(header))
+        if (!Initialised || Count == 0) throw new InvalidOperationException("Stack underflow");
+        var entryIndex = Count << 2;
+        if (entryIndex > bottom)
         {
-            case var size when (size & 0xF0000000) == 0:
-                var ntop = top - size - headerSize;
-                return new Stack(objects, memory, ntop, bottom - 4, count);
-            
-            case var objix when (objix & 0xF0000000) == 0x10000000:
-                var ix = objix & 0xFFFFFFF;
-                if (ix == objects.Count - 1)
-                {
-                    return new Stack(objects.Pop(), memory, top - headerSize, bottom - 4, count);
-                }
-                else
-                {
-                    throw new InvalidOperationException("Object not at the top of the stack where it should be");
-                }
-            
-            default:
-                throw new InvalidOperationException("Stack corrupted");
+            return this;
+        }
+        var index = memory.Slice(count - entryIndex, 4);
+        var entry = BitConverter.ToInt32(index);
+
+        if ((entry & objectEntryFlag) == objectEntryFlag)
+        {
+            return new Stack(objects.Pop(), memory, top, bottom - 4, count);
+        }
+        else
+        {
+            var size = BitConverter.ToInt32(memory.Slice(entry, 4));
+            var ntop = top - size - headerSize;
+            return new Stack(objects, memory, ntop, bottom - 4, count);
         }
     }
 
     public Stack ReadFromAndPush(Stack other, int ix)
     {
-        if(!Initialised) return Initialise().ReadFromAndPush(other, ix);
-        var fourIx = (ix + 1) << 2;
-        if (fourIx > other.bottom)
+        if (!Initialised) return ReadFromAndPush(Initialise(), ix);
+        if (other.IsObject(ix))
         {
-            throw new ArgumentOutOfRangeException(nameof(ix));
+            return PushObj(other.AtObject<object?>(ix));
         }
-        var index = other.memory.Slice(other.count - fourIx, 4);
-        var hdrix = BitConverter.ToInt32(index); 
-        
-        var header1       = other.memory.Slice(hdrix, 4);
-        var metadataToken = BitConverter.ToInt32(other.memory.Slice(hdrix + 4, 4));
-        switch (BitConverter.ToInt32(header1))
+        else
         {
-            case var size when (size & 0xF0000000) == 0:
-                var stack = Expand(size + headerSize + 4);
-                var structure = other.memory.Slice(hdrix - size, size + headerSize);
-                structure.CopyTo(stack.memory.Slice(stack.top));    // TODO check not out of range for destination
-                var tindex = memory.Slice(stack.count - stack.bottom - 4, 4);
-                Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(tindex), stack.top + size);
-                return new Stack(stack.objects, stack.memory, stack.top + size + headerSize, stack.bottom + 4, stack.count);
+            var bytes = other.AtBytesAndHeader(ix);
+            var size  = bytes.Length;
+            var stack = Expand(size + indexEntrySize);
+            var ntop  = stack.top + size;
+            bytes.CopyTo(stack.memory.Slice(stack.top));
+            var index = memory.Slice(stack.count - stack.bottom - indexEntrySize, indexEntrySize);
             
-            case var objix when (objix & 0xF0000000) == 0x10000000:
-                objix &= 0xFFFFFFF;
-                return PushObj(other.objects[objix], metadataToken);
+            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(index), ntop - headerSize);
             
-            default:
-                throw new InvalidOperationException("Stack corrupted");
-        }        
+            return new Stack(stack.objects, stack.memory, ntop, stack.bottom + 4, stack.count);
+        }
     }
 
     public Stack Append(Stack other)
@@ -395,14 +372,28 @@ public readonly ref struct Stack
         otherTop.CopyTo(thisTop);
 
         // Copy other's bottom section to this stack's bottom section
+        var objtop = stack.objects.Count;
+        var bottom = stack.count - stack.bottom;
+        var valtop = stack.top;
+        var max    = other.count;
         for (var i = 4; i <= other.bottom; i+=4)
         {
             // Get the other index value and offset it by this stack's top value to
             // make sure we're pointing at the right item
-            var othix = other.memory.Slice(other.count       - i, 4);
-            var newix = stack.memory.Slice(stack.count - stack.bottom - i, 4);
-            var ix    = BitConverter.ToInt32(othix) + stack.top;
-            Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(newix), ix);
+            var entry = BitConverter.ToInt32(other.memory.Slice(max - i, 4));
+            if ((entry & objectEntryFlag) == objectEntryFlag)
+            {
+                // It's an object; which has an index that needs shifting.
+                entry += objtop;
+                Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(stack.memory.Slice(bottom - i, 4)), entry);
+            }
+            else
+            {
+                // It's a value, so it has now been shifted by `stack.top` bytes. That means we should
+                // update the index value.  
+                entry += valtop;
+                Unsafe.WriteUnaligned(ref MemoryMarshal.GetReference(stack.memory.Slice(bottom - i, 4)), entry);
+            }
         }
 
         // Merge the object sequences
