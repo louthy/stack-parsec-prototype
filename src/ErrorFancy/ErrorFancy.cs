@@ -1,3 +1,5 @@
+using LanguageExt.ClassInstances;
+
 namespace LanguageExt.RefParsec;
 
 public abstract record ErrorFancy<E> : ErrorItemBase, IComparable<ErrorFancy<E>>
@@ -21,7 +23,7 @@ public abstract record ErrorFancy<E> : ErrorItemBase, IComparable<ErrorFancy<E>>
         public override int CompareTo(ErrorFancy<E>? other) =>
             other switch
             {
-                Fail => 0,
+                Fail => -1,
                 Indentation(var rhsOrdering, var rhsReference, var rhsActual) =>
                     Ordering.CompareTo(rhsOrdering) switch
                     {
@@ -44,8 +46,10 @@ public abstract record ErrorFancy<E> : ErrorItemBase, IComparable<ErrorFancy<E>>
     {
         public override int CompareTo(ErrorFancy<E>? other) =>
             other is Custom(var rhs)
-                ? Comparer<E>.Default.Compare(Value, rhs)
-                : 0;
+                ? Value is IComparable || rhs is IComparable 
+                      ? Comparer<E>.Default.Compare(Value, rhs) 
+                      : (Value?.GetHashCode() ?? 0).CompareTo(rhs?.GetHashCode() ?? 0)
+                : -1;
 
         public override string ToString() =>
             Value?.ToString() ?? "error";

@@ -46,8 +46,8 @@ public abstract record ErrorItem<T> : ErrorItemBase, K<ErrorItem, T>, IComparabl
             other switch
             {
                 Label label => string.Compare(Value, label.Value, StringComparison.Ordinal),
-                Tokens      => 1,
-                _           => -1
+                Tokens      => -1,
+                _           => 1
             };
 
         public override string ToString() =>
@@ -63,7 +63,7 @@ public abstract record ErrorItem<T> : ErrorItemBase, K<ErrorItem, T>, IComparabl
             other switch
             {
                 EndfOfInput => 0,
-                _           => 1
+                _           => -1
             };
 
         public override string ToString() =>
