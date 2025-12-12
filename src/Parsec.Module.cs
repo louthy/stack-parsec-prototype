@@ -45,7 +45,9 @@ public static class Module<E, T>
         // delimits the two sets and also gives us enough information to skip
         // the second set if the first succeeds.
         var ninstrs = p1.Instructions
-                        .Add(OpCode.Or)
+                        .ConsInt32(p1.Instructions.Count)
+                        .Cons(OpCode.OrLeft)
+                        .Add(OpCode.OrRight)
                         .AddInt32(next)
                         .AddConstantId(p1.Constants.Count)
                         .Add(p2.Instructions.Span());

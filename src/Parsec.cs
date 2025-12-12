@@ -160,8 +160,7 @@ public readonly ref struct Parsec<E, T, A>
         var stack        = new Stack(stackMem);
         var instructions = Instructions;
         var constants    = Constants;
-        var errors       = RefSeq<ParseError<E, T>>.Empty;
-        var state        = new State<E, T>(stream, SourcePos.FromName(sourceName), errors);
+        var state        = new State<E, T>(stream, SourcePos.FromName(sourceName));
 
         return ParsecInternals<E, T, A>.Parse(instructions, constants, 0, state, stack, cok, eok, cerr, eerr);
     }

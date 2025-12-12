@@ -28,8 +28,8 @@ static partial class ParsecInternals<E, T, A>
     {
         var savedState = state;
         var savedPC    = pc;
-        var ntaken     = ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
-        if (ntaken == 0)
+        ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
+        if (pc - savedPC == 0)
         {
             // Not consumed, so we don't care if it succeeded or not. Empty OK and Empty Error are both fine.
             return;

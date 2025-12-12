@@ -18,7 +18,9 @@ static partial class ParsecInternals<E, T, A>
         Func<ParseError<E, T>, State<E, T>, B> consumedErr,
         Func<ParseError<E, T>, State<E, T>, B> emptyErr)
     {
-        var taken = ParseUntyped(instructions, constants, constantOffset, ref state, ref stack);
+        var initial = state.Position.Offset;
+        ParseUntyped(instructions, constants, constantOffset, ref state, ref stack);
+        var taken = state.Position.Offset - initial;
 
         switch (stack.PeekReply())
         {
@@ -62,13 +64,13 @@ static partial class ParsecInternals<E, T, A>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack)
+    static void ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack)
     {
         var pc = 0; // program counter
-        return ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
+        ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
     }
 
-    static int ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc)
+    static void ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc)
     {
         var constantOffsetReset = constantOffset;
         var initialOffset       = state.Position.Offset;
@@ -79,7 +81,7 @@ static partial class ParsecInternals<E, T, A>
             if (pc >= instructions.Count)
             {
                 stack = stack.PushOK();
-                return state.Position.Offset - initialOffset;
+                return;
             }
             
             // Next instruction
@@ -97,6 +99,20 @@ static partial class ParsecInternals<E, T, A>
                 case OpCode.Error:
                     // Read the error constant and push it onto the stack.
                     ProcessError(instructions, constants, constantOffset, state, ref stack, ref pc);
+                    break;
+                
+                case OpCode.OrLeft:
+                    // Find the size of the lhs
+                    var lhsSize = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
+                    
+                    // Get just the lhs instructions
+                    var lhs     = instructions.Slice(pc + 4, lhsSize);
+                    
+                    // Run the lhs
+                    ParseUntyped(lhs, constants, constantOffset, ref state, ref stack);
+                    
+                    // Skip to the end of the lhs
+                    pc += 4 + lhsSize;
                     break;
                 
                 case OpCode.Token:
@@ -150,8 +166,6 @@ static partial class ParsecInternals<E, T, A>
             var loop = true;
             while (loop)
             {
-                var taken = state.Position.Offset - initialOffset;
-                
                 switch (stack.PeekReply())
                 {
                     case StackReply.OK:
@@ -178,14 +192,14 @@ static partial class ParsecInternals<E, T, A>
                             {
                                 if (pc >= instructions.Count)
                                 {
-                                    // No more instructions, so return a successful result.
+                                    // No more instructions, so skip to the end of the section
                                     stack = stack.PushOK();
-                                    return taken;
+                                    return;
                                 }
 
                                 // No more instructions, or, look ahead, if there's an OR instruction,
                                 // then we're done, because we succeeded here.
-                                if (instructions[pc] == (byte)OpCode.Or)
+                                if (instructions[pc] == (byte)OpCode.OrRight)
                                 {
                                     // Skip the OR instruction
                                     pc++;
@@ -215,20 +229,21 @@ static partial class ParsecInternals<E, T, A>
                         break;
                     
                     case StackReply.Error:
+                        var taken = state.Position.Offset - initialOffset;
                         if (taken > 0)
                         {
                             // We've consumed, which makes an error fatal, so early-out
-                            return taken;
+                            return;
                         }
                         
                         // No more instructions?
                         if (pc >= instructions.Count)
                         {
-                            return taken;
+                            return;
                         }
                         
                         // Look ahead, we need an OR instruction to continue
-                        if (instructions[pc] == (byte)OpCode.Or)
+                        if (instructions[pc] == (byte)OpCode.OrRight)
                         {
                             // Skip the OR and the int32 offset value (that is only needed if we had succeeded)
                             pc += 5;
@@ -244,14 +259,13 @@ static partial class ParsecInternals<E, T, A>
                         {
                             // We've got a failure that hasn't been caught by an OR instruction, so we early-out
                             // with the failure value remaining on the stack
-                            return taken;
+                            return;
                         }
 
                     default:
                         // We've got a failure, so we early-out with the failure value remaining on the stack
-                        return taken;
+                        return;
                 }
-
             }
         }
     }
