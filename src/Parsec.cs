@@ -250,10 +250,10 @@ public readonly ref struct Parsec<E, T, A>
             if (stack.Peek<Func<A, Parsec<E, T, B>>>(out var f))
             {
                 stack = stack.Pop();
-                if (stack.Peek<A>(out var x))
+                if (stack.Peek<A>(out var ma))
                 {
-                    // We don't pop the top stack value here as we need it for the project function
-                    var mb = f(x).Core;
+                    stack = stack.Pop();
+                    var mb = f(ma).Core;
                     return stack.Push(mb).PushOK();
                 }
                 else
