@@ -89,7 +89,8 @@ static partial class ParsecInternals<E, T, A>
             {
                 case OpCode.Pure:
                     // Read the pure constant and push it onto the stack.
-                    stack = stack.ReadFromAndPush(constants, instructions.GetConstantId(ref pc, constantOffset))
+                    stack = stack.PopError()
+                                 .ReadFromAndPush(constants, instructions.GetConstantId(ref pc, constantOffset))
                                  .PushOK();
                     break;
 

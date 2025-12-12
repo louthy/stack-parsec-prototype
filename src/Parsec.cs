@@ -212,7 +212,9 @@ public readonly ref struct Parsec<E, T, A>
                 {
                     stack = stack.Pop();
                     var v = f(x);
-                    return stack.Push(v).PushOK();
+                    return stack.PopError()
+                                .Push(v)
+                                .PushOK();
                 }
                 else
                 {
@@ -254,7 +256,9 @@ public readonly ref struct Parsec<E, T, A>
                 {
                     stack = stack.Pop();
                     var mb = f(ma).Core;
-                    return stack.Push(mb).PushOK();
+                    return stack.PopError()
+                                .Push(mb)
+                                .PushOK();
                 }
                 else
                 {
@@ -304,7 +308,9 @@ public readonly ref struct Parsec<E, T, A>
                 {
                     // We don't pop the top stack value here as we need it for the project function
                     var mb = f(x).Core;
-                    return stack.Push(mb).PushOK();
+                    return stack.PopError()
+                                .Push(mb)
+                                .PushOK();
                 }
                 else
                 {
@@ -329,7 +335,9 @@ public readonly ref struct Parsec<E, T, A>
                     {
                         stack = stack.Pop();
                         var z = f(x, y);
-                        return stack.Push(z).PushOK();
+                        return stack.PopError()
+                                    .Push(z)
+                                    .PushOK();
                     }
                 }
 

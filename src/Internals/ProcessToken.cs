@@ -42,7 +42,8 @@ static partial class ParsecInternals<E, T, A>
                 if (read[0] == token)
                 {
                     state = state.NextToken;
-                    stack = stack.Push(read[0])
+                    stack = stack.PopError()
+                                 .Push(read[0])
                                  .PushOK();
                 }
                 else

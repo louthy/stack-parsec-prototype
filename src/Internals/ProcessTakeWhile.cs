@@ -32,7 +32,8 @@ static partial class ParsecInternals<E, T, A>
         
         if (data.Length < 1)
         {
-            stack = stack.Push(ReadOnlySpan<T>.Empty)
+            stack = stack.PopError()
+                         .Push(ReadOnlySpan<T>.Empty)
                          .PushOK();
             return;
         }
@@ -43,7 +44,8 @@ static partial class ParsecInternals<E, T, A>
             {
                 if (count >= state.Input.Length || !predicate(data[count]))
                 {
-                    stack = stack.Push(data.Slice(0, count))
+                    stack = stack.PopError()
+                                 .Push(data.Slice(0, count))
                                  .PushOK();
                     return;
                 }

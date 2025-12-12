@@ -56,7 +56,9 @@ static partial class ParsecInternals<E, T, A>
                     }
                 }
                 
-                stack = stack.Push(read).PushOK();
+                stack = stack.PopError()
+                             .Push(read)
+                             .PushOK();
             }
         }
         else

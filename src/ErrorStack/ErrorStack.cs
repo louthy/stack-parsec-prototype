@@ -61,11 +61,32 @@ public static class ErrorStack
                     throw new Exception("Stack corrupted: expected a StackReply at the top of stack");
             }
         }
-
     }
 
     extension(Stack stack)
     {
+        public Stack PopError()
+        {
+            var reply = stack.PeekReply();
+            switch (reply)
+            {
+                case StackReply.Error:
+                    stack = stack.Pop()     // StackReply
+                                 .Pop();    // SourcePos
+                    while (PopErrorItem(ref stack)) /* loop */ ;
+                    return stack;
+
+                case StackReply.OK:
+                    return stack;
+
+                case StackReply.NoReply:
+                    return stack;
+
+                default:
+                    throw new Exception("Stack corrupted: expected a StackReply at the top of stack");
+            }
+        }
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public StackReply PeekReply()
         {
@@ -149,6 +170,7 @@ public static class ErrorStack
                            ? ErrorStackType.Expected
                            : ErrorStackType.Unexpected);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Stack PushTerminator<E, T>(State<E, T> state, out SourcePos pos)
         {
             if (stack.Peek<StackReply>(out var t) && t == StackReply.Error)
@@ -195,6 +217,32 @@ public static class ErrorStack
                 {
                     return PopFancyErrorItem(fancyItems, ref stack);
                 }
+                    
+                default:
+                    throw new Exception("Stack corrupted: expected a ErrorStackType:byte at the top of stack");
+            }
+        }
+        else
+        {
+            throw new Exception("Stack corrupted: expected a ErrorStackType:byte at the top of stack");
+        }
+    }
+    
+    public static bool PopErrorItem(ref Stack stack)
+    {
+        if (stack.Peek<ErrorStackType>(out var type))
+        {
+            stack = stack.Pop();
+            switch (type)
+            {
+                case ErrorStackType.Terminator:
+                    return false;
+                
+                case ErrorStackType.Expected or ErrorStackType.Unexpected:
+                    return PopTrivialErrorItem(ref stack);
+
+                case ErrorStackType.Fancy:
+                    return PopFancyErrorItem(ref stack);
                     
                 default:
                     throw new Exception("Stack corrupted: expected a ErrorStackType:byte at the top of stack");
@@ -265,6 +313,32 @@ public static class ErrorStack
                     {
                         throw new Exception($"Stack corrupted: expected a {typeof(E).Name} at the top of stack");
                     }
+                            
+                default:
+                    throw new Exception($"Stack corrupted: unexpected ErrorStackType:byte {subtype}");
+            }
+        }
+        else
+        {
+            throw new Exception("Stack corrupted: expected a byte at the top of stack");
+        }
+    }
+
+    static bool PopFancyErrorItem(ref Stack stack)
+    {
+        if (stack.Peek<ErrorStackType>(out var subtype))
+        {
+            stack = stack.Pop();
+            switch (subtype)
+            {
+                case ErrorStackType.Custom:
+                case ErrorStackType.Fail:
+                    stack = stack.Pop();
+                    return true;
+
+                case ErrorStackType.Indentation:
+                    stack = stack.Pop().Pop().Pop();
+                    return true;
                             
                 default:
                     throw new Exception($"Stack corrupted: unexpected ErrorStackType:byte {subtype}");
@@ -405,4 +479,33 @@ public static class ErrorStack
         }
     }
 
+    static bool PopTrivialErrorItem(ref Stack stack)
+    {
+        if (stack.Peek<ErrorStackType>(out var subtype))
+        {
+            stack = stack.Pop();
+            switch (subtype)
+            {
+                case ErrorStackType.Token:
+                case ErrorStackType.Tokens:
+                case ErrorStackType.Label:
+                {
+                    stack = stack.Pop();
+                    return true;
+                }
+
+                case ErrorStackType.EndOfInput:
+                {
+                    return true;
+                }
+                
+                default:
+                    throw new Exception("Stack corrupted: expected a ErrorStackType:byte at the top of stack [2]");
+            }
+        }
+        else
+        {
+            throw new Exception("Stack corrupted: expected a ErrorStackType:byte at the top of stack [1]");
+        }
+    }
 }

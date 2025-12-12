@@ -55,7 +55,8 @@ static partial class ParsecInternals<E, T, A>
             }
 
             // Success
-            stack = stack.Push(token)
+            stack = stack.PopError()
+                         .Push(token)
                          .PushOK();
 
             state = state.NextToken;

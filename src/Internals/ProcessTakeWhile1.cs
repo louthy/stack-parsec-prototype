@@ -57,7 +57,8 @@ static partial class ParsecInternals<E, T, A>
                     else
                     {
                         // Success
-                        stack = stack.Push(data.Slice(0, count))
+                        stack = stack.PopError()
+                                     .Push(data.Slice(0, count))
                                      .PushOK();
                     }
 

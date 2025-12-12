@@ -25,7 +25,8 @@ static partial class ParsecInternals<E, T, A>
         }
         else
         {
-            stack = stack.Push(state.Input[state.Position.Offset])
+            stack = stack.PopError()
+                         .Push(state.Input[state.Position.Offset])
                          .PushOK();
             state = state.NextToken;
         }
