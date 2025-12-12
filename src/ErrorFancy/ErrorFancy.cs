@@ -11,6 +11,9 @@ public abstract record ErrorFancy<E> : ErrorItemBase, IComparable<ErrorFancy<E>>
             other is Fail(var rhs)
                 ? string.Compare(Value, rhs, StringComparison.Ordinal)
                 : 1;
+
+        public override string ToString() =>
+            Value;
     }
 
     public record Indentation(int Ordering, int Reference, int Actual) : ErrorFancy<E>
@@ -32,6 +35,9 @@ public abstract record ErrorFancy<E> : ErrorItemBase, IComparable<ErrorFancy<E>>
                 Custom => 1,
                 _      => throw new NotSupportedException()
             };
+
+        public override string ToString() =>
+            "indentation error";
     }
 
     public record Custom(E Value) : ErrorFancy<E>
@@ -40,6 +46,9 @@ public abstract record ErrorFancy<E> : ErrorItemBase, IComparable<ErrorFancy<E>>
             other is Custom(var rhs)
                 ? Comparer<E>.Default.Compare(Value, rhs)
                 : 0;
+
+        public override string ToString() =>
+            Value?.ToString() ?? "error";
     }
 
     public abstract int CompareTo(ErrorFancy<E>? other);

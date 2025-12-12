@@ -32,6 +32,24 @@ public abstract record ParseError<E, T>(SourcePos Position) : Semigroup<ParseErr
         
         static Func<ParseError<E, T>, Func<State<E, T>, K<M, B>>> curry<M, B>(Func<ParseError<E, T>, State<E, T>, K<M, B>> f) => 
             p => s => f(p, s);
+
+        public override string ToString() =>
+            (Unexpected.Case, Expected) switch
+                              {
+                                  (ErrorItem<T> un, { IsEmpty: true }) =>
+                                      $"{Position} unexpected {un}",
+
+                                  (ErrorItem<T> un, var ex) =>
+                                      $"{Position} unexpected {un}, expected {string.Join(", ", ex)}",
+                                  
+                                  (null, { IsEmpty: true } ) =>
+                                      $"{Position} parsing failed",
+                                  
+                                  (null, var ex) =>
+                                      $"{Position} expected {string.Join(", ", ex)}",
+
+                                  _ => throw new Exception("Impossible case")
+                              };
     }
 
     /// <summary>
@@ -47,6 +65,9 @@ public abstract record ParseError<E, T>(SourcePos Position) : Semigroup<ParseErr
 
         static Func<ParseError<E, T>, Func<State<E, T>, K<M, B>>> curry<M, B>(Func<ParseError<E, T>, State<E, T>, K<M, B>> f) => 
             p => s => f(p, s);
+        
+        public override string ToString() =>
+            $"{Position} {string.Join("; ", Errors.Map(e => e.ToString()))}";
     }
 
     public abstract Func<State<E, T>, K<M, B>> WithHints<S, M, B>(

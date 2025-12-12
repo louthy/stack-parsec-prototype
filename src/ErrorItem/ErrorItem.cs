@@ -31,6 +31,9 @@ public abstract record ErrorItem<T> : ErrorItemBase, K<ErrorItem, T>, IComparabl
                 Tokens tokens => Items.CompareTo(tokens.Items),
                 _             => 1
             };
+
+        public override string ToString() =>
+            string.Join(", ", Items.Map(t => $"'{t}'"));
     }
 
     /// <summary>
@@ -46,6 +49,9 @@ public abstract record ErrorItem<T> : ErrorItemBase, K<ErrorItem, T>, IComparabl
                 Tokens      => 1,
                 _           => -1
             };
+
+        public override string ToString() =>
+            Value;
     }
 
     /// <summary>
@@ -59,6 +65,9 @@ public abstract record ErrorItem<T> : ErrorItemBase, K<ErrorItem, T>, IComparabl
                 EndfOfInput => 0,
                 _           => 1
             };
+
+        public override string ToString() =>
+            "end-of-input";
     }
 
     public abstract int CompareTo(ErrorItem<T>? other);

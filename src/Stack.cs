@@ -125,7 +125,7 @@ public readonly ref struct Stack
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsObject(int ix)
     {
-        if (!Initialised) return false;
+        if (!Initialised || ix < 0 || ix >= Count) return false;
         var entryIndex = ix + 1 << 2;
         if (entryIndex > bottom) return false;
         var index = memory.Slice(count - entryIndex, 4);
@@ -136,7 +136,7 @@ public readonly ref struct Stack
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsValueType(int ix)
     {
-        if (!Initialised) return false;
+        if (!Initialised || ix < 0 || ix >= Count) return false;
         var entryIndex = ix + 1 << 2;
         if (entryIndex > bottom) return false;
         var index = memory.Slice(count - entryIndex, 4);
@@ -147,11 +147,12 @@ public readonly ref struct Stack
     public bool At<A>(int ix, out A returnValue)
         where A : allows ref struct
     {
-        if (!Initialised)
+        if (!Initialised || ix < 0 || ix >= Count)
         {
             returnValue = default!;
             return false;
         }
+
         var entryIndex = ix + 1 << 2;
         if (entryIndex > bottom)
         {
@@ -200,8 +201,7 @@ public readonly ref struct Stack
 
     public ReadOnlySpan<byte> AtBytesAndHeader(int index)
     {
-        if (!Initialised) return ReadOnlySpan<byte>.Empty;
-        if(index >= Count) return ReadOnlySpan<byte>.Empty;
+        if (!Initialised ||  index < 0 || index >= Count) return ReadOnlySpan<byte>.Empty;
         var bottomIndex = index + 1 << 2;
         var entry = BitConverter.ToInt32(memory.Slice(count - bottomIndex, indexEntrySize));
 
@@ -217,7 +217,7 @@ public readonly ref struct Stack
 
     public A? AtObject<A>(int index)
     {
-        if (!Initialised) return default;
+        if (!Initialised || index < 0 || index >= Count) return default;
         var bottomIndex = index + 1 << 2;
         if (bottomIndex > bottom) return default;
         var entry = BitConverter.ToInt32(memory.Slice(count - bottomIndex, indexEntrySize));

@@ -26,9 +26,10 @@ static partial class ParsecInternals<E, T, A>
         ref Stack stack, 
         ref int pc)
     {
-        var start = state.Position.Offset;
         var count = 0;
+        var start = state.Position.Offset;
         var data  = state.Input.Slice(start);
+        
         if (data.Length < 1)
         {
             stack = stack.Push(ReadOnlySpan<T>.Empty)
@@ -42,7 +43,6 @@ static partial class ParsecInternals<E, T, A>
             {
                 if (count >= state.Input.Length || !predicate(data[count]))
                 {
-                    state = state.Next(count);
                     stack = stack.Push(data.Slice(0, count))
                                  .PushOK();
                     return;
@@ -50,6 +50,7 @@ static partial class ParsecInternals<E, T, A>
                 else
                 {
                     count++;
+                    state = state.Next(count);
                 }
             }
         }

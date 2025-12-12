@@ -26,9 +26,10 @@ static partial class ParsecInternals<E, T, A>
         ref Stack stack, 
         ref int pc)
     {
-        var start = state.Position.Offset;
         var count = 0;
+        var start = state.Position.Offset;
         var data  = state.Input.Slice(start);
+        
         if (data.Length < 1)
         {
             stack = stack.PushTerminator(state, out var pos)
@@ -44,7 +45,6 @@ static partial class ParsecInternals<E, T, A>
                 if (count >= state.Input.Length || !predicate(data[count]))
                 {
                     state = state.Next(count);
-
                     if (count == 0)
                     {
                         // Unexpected token
