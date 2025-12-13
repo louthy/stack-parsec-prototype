@@ -4,8 +4,7 @@ public enum OpCode : byte
 {
     Pure = 1,
     Error,
-    OrLeft,  // Left-hand side of a choice parser
-    OrRight, // Right-hand side of a choice parser
+    Or,
     Token,
     Tokens,
     Invoke,

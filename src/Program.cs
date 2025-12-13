@@ -64,7 +64,7 @@ var p13 = p13a | p13b;
 
 var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);
 
-var r = p13.Parse("abcxyzabc");
+var r = p13a.Parse("abcxyzabc");
 
 showResult(r);
 

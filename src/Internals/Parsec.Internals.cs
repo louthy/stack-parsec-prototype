@@ -101,7 +101,7 @@ static partial class ParsecInternals<E, T, A>
                     ProcessError(instructions, constants, constantOffset, state, ref stack, ref pc);
                     break;
                 
-                case OpCode.OrLeft:
+                case OpCode.Or:
                     // Find the size of the lhs
                     var lhsSize = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
                     
@@ -113,6 +113,57 @@ static partial class ParsecInternals<E, T, A>
                     
                     // Skip to the end of the lhs
                     pc += 4 + lhsSize;
+
+                    if (stack.IsOK())
+                    {
+                        // We're not midway through an OR instruction, so reset the constant offset
+                        constantOffset = constantOffsetReset;
+
+                        if (pc >= instructions.Count)
+                        {
+                            // No more instructions, so skip to the end of the section
+                            return;
+                        }
+
+                        if (pc + 4 > instructions.Count)
+                        {
+                            // If we get here, then the instructions are corrupt
+                            throw new Exception("Or: expected constant offset");
+                        }
+                            
+                        // Read the offset 
+                        var offset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
+
+                        // Skip the offset, the constant-offset, and the rhs instructions 
+                        pc += offset;
+                    }
+                    else
+                    {
+                        var taken = state.Position.Offset - initialOffset;
+                        if (taken > 0)
+                        {
+                            // We've consumed, which makes an error fatal, so early-out
+                            return;
+                        }
+                        
+                        // Skip the int32 offset value (that is only needed if we had succeeded)
+                        pc += 4;
+
+                        // Constants offset
+                        // Because constants are appended when the choice operator is used, we have an indexing problem
+                        // with all absolute constant-identifiers.  So, we simply track an offset value when we need
+                        // to process the right-hand-side of the choice-operator.  This shifts the constant-identifiers
+                        // into the correct range.
+                        constantOffset = BitConverter.ToInt16(instructions.Span().Slice(pc, Bytes.ConstantIdSize));
+                        pc += Bytes.ConstantIdSize;
+                        
+
+                        // Skip the error checking at the end of this function, we've set the program-counter to the
+                        // right-hand-side of the choice-operator, so we can just continue. The top of the stack will
+                        // have the error value, so we can collect multiple errors if necessary.
+                        continue;
+                    }
+
                     break;
                 
                 case OpCode.Token:
@@ -170,9 +221,6 @@ static partial class ParsecInternals<E, T, A>
                 {
                     case StackReply.OK:
                         
-                        // We're not midway through an OR instruction, so reset the constant offset
-                        constantOffset = constantOffsetReset;
-                        
                         // Remove the OK from the stack, leaving just the success value
                         stack = stack.Pop();
 
@@ -188,40 +236,6 @@ static partial class ParsecInternals<E, T, A>
                         }
                         else
                         {
-                            while (true)
-                            {
-                                if (pc >= instructions.Count)
-                                {
-                                    // No more instructions, so skip to the end of the section
-                                    stack = stack.PushOK();
-                                    return;
-                                }
-
-                                // No more instructions, or, look ahead, if there's an OR instruction,
-                                // then we're done, because we succeeded here.
-                                if (instructions[pc] == (byte)OpCode.OrRight)
-                                {
-                                    // Skip the OR instruction
-                                    pc++;
-
-                                    if (pc + 4 > instructions.Count)
-                                    {
-                                        // If we get here, then the instructions are corrupt
-                                        throw new Exception("Or: expected constant offset");
-                                    }
-                                    
-                                    // Read the offset 
-                                    var offset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
-
-                                    // Skip the offset, the constant-offset, and the rhs instructions 
-                                    pc += offset;
-                                }
-                                else
-                                {
-                                    break;
-                                }
-                            }
-
                             // If there isn't a ParserCore on the stack, then exit the loop and keep
                             // running the instructions.
                             loop = false;
@@ -229,38 +243,9 @@ static partial class ParsecInternals<E, T, A>
                         break;
                     
                     case StackReply.Error:
-                        var taken = state.Position.Offset - initialOffset;
-                        if (taken > 0)
-                        {
-                            // We've consumed, which makes an error fatal, so early-out
-                            return;
-                        }
-                        
-                        // No more instructions?
-                        if (pc >= instructions.Count)
-                        {
-                            return;
-                        }
-                        
-                        // Look ahead, we need an OR instruction to continue
-                        if (instructions[pc] == (byte)OpCode.OrRight)
-                        {
-                            // Skip the OR and the int32 offset value (that is only needed if we had succeeded)
-                            pc += 5;
-                            
-                            // Constants offset
-                            constantOffset = BitConverter.ToInt16(instructions.Span().Slice(pc, Bytes.ConstantIdSize));
-                            pc += Bytes.ConstantIdSize;
-
-                            loop = false;
-                            break;
-                        }
-                        else
-                        {
-                            // We've got a failure that hasn't been caught by an OR instruction, so we early-out
-                            // with the failure value remaining on the stack
-                            return;
-                        }
+                        // We've got a failure that hasn't been caught by a choice-operator, so we early-out
+                        // with the failure value remaining on the stack
+                        return;
 
                     default:
                         // We've got a failure, so we early-out with the failure value remaining on the stack
