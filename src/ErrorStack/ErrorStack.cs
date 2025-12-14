@@ -171,7 +171,7 @@ public static class ErrorStack
                            : ErrorStackType.Unexpected);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Stack PushTerminator<E, T>(State<E, T> state, out SourcePos pos)
+        public Stack PushTerminator<T>(State<T> state, out SourcePos pos)
         {
             if (stack.Peek<StackReply>(out var t) && t == StackReply.Error)
             {

@@ -25,12 +25,12 @@ public abstract record ParseError<E, T>(SourcePos Position) : Semigroup<ParseErr
     public record Trivial(SourcePos Position, Option<ErrorItem<T>> Unexpected, Set<ErrorItem<T>> Expected)
         : ParseError<E, T>(Position)
     {
-        public override Func<State<E, T>, K<M, B>> WithHints<S, M, B>(
+        public override Func<State<T>, K<M, B>> WithHints<S, M, B>(
             Hints<T> hs, 
-            Func<ParseError<E, T>, State<E, T>, K<M, B>> f) => 
+            Func<ParseError<E, T>, State<T>, K<M, B>> f) => 
             curry(f)(ParseError.Trivial<E, T>(Position, Unexpected, Expected + hs.Errors));
         
-        static Func<ParseError<E, T>, Func<State<E, T>, K<M, B>>> curry<M, B>(Func<ParseError<E, T>, State<E, T>, K<M, B>> f) => 
+        static Func<ParseError<E, T>, Func<State<T>, K<M, B>>> curry<M, B>(Func<ParseError<E, T>, State<T>, K<M, B>> f) => 
             p => s => f(p, s);
 
         public override string ToString() =>
@@ -58,21 +58,21 @@ public abstract record ParseError<E, T>(SourcePos Position) : Semigroup<ParseErr
     public record Fancy(SourcePos Position, Set<ErrorFancy<E>> Errors)
         : ParseError<E, T>(Position)
     {
-        public override Func<State<E, T>, K<M, B>> WithHints<S, M, B>(
+        public override Func<State<T>, K<M, B>> WithHints<S, M, B>(
             Hints<T> hs,
-            Func<ParseError<E, T>, State<E, T>, K<M, B>> f) =>
+            Func<ParseError<E, T>, State<T>, K<M, B>> f) =>
             curry(f)(this);
 
-        static Func<ParseError<E, T>, Func<State<E, T>, K<M, B>>> curry<M, B>(Func<ParseError<E, T>, State<E, T>, K<M, B>> f) => 
+        static Func<ParseError<E, T>, Func<State<T>, K<M, B>>> curry<M, B>(Func<ParseError<E, T>, State<T>, K<M, B>> f) => 
             p => s => f(p, s);
         
         public override string ToString() =>
             $"{Position} {string.Join("; ", Errors.Map(e => e.ToString()))}";
     }
 
-    public abstract Func<State<E, T>, K<M, B>> WithHints<S, M, B>(
+    public abstract Func<State<T>, K<M, B>> WithHints<S, M, B>(
         Hints<T> hs, 
-        Func<ParseError<E, T>, State<E, T>, K<M, B>> f);
+        Func<ParseError<E, T>, State<T>, K<M, B>> f);
 
     public ParseError<E, T> Combine(ParseError<E, T> rhs) => 
         ParseError.mergeError(this, rhs);

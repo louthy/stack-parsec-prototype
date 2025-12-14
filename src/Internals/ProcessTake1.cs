@@ -14,7 +14,7 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="stack">VM stack</param>
     /// <param name="taken">Tokens read, so far</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ProcessTake1(ref State<E, T> state, ref Stack stack)
+    static void ProcessTake1(ref State<T> state, ref Stack stack)
     {
         var offset = state.Position.Offset;
         if (offset + 1 > state.Input.Length)

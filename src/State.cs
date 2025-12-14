@@ -1,6 +1,6 @@
 namespace LanguageExt.RefParsec;
 
-public readonly ref struct State<E, T>
+public readonly ref struct State<T>
 {
     public readonly ReadOnlySpan<T> Input;
     public readonly SourcePos Position;
@@ -15,20 +15,23 @@ public readonly ref struct State<E, T>
     /// Move to the beginning of the next line
     /// </summary>
     /// <returns></returns>
-    public State<E, T> NextLine =>
+    public State<T> NextLine =>
         new (Input, Position.NextLine);
 
     /// <summary>
     /// Move to the next token
     /// </summary>
     /// <returns></returns>
-    public State<E, T> NextToken =>
+    public State<T> NextToken =>
         new (Input, Position.NextToken);
 
     /// <summary>
     /// Move to the next token
     /// </summary>
     /// <returns></returns>
-    public State<E, T> Next(int amount) =>
+    public State<T> Next(int amount) =>
         new (Input, Position.Next(amount));
+    
+    public State<T> SetPosition(SourcePos pos) =>
+        new (Input, pos);
 }

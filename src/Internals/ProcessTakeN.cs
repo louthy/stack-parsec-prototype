@@ -18,7 +18,7 @@ static partial class ParsecInternals<E, T, A>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     static void ProcessTakeN(
         Bytes instructions, 
-        ref State<E, T> state, 
+        ref State<T> state, 
         ref Stack stack, 
         ref int pc)
     {

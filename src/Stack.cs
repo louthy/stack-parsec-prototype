@@ -305,7 +305,7 @@ public readonly ref struct Stack
 
         if (ShowDebugMessages)
         {
-            Console.WriteLine($"PUSH (obj): {typeof(A).Name}");
+            Console.WriteLine($"PUSH (obj): {value?.GetType().Name ?? typeof(A).Name}");
         }
         return new Stack(stack.objects.Add(value), stack.memory, stack.top, nbottom, stack.count);
     }

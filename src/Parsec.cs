@@ -90,8 +90,8 @@ public readonly ref struct Parsec<E, T, A>
         Parse(stream,
               stackMem,
               sourceName,
-              (x, s) => ParserResult.ConsumedOK(f(x), s),
-              (x, s) => ParserResult.EmptyOK(f(x), s),
+              (x, s) => ParserResult.ConsumedOK<E, T, B>(f(x), s),
+              (x, s) => ParserResult.EmptyOK<E, T, B>(f(x), s),
               ParserResult.ConsumedErr<E, T, B>,
               ParserResult.EmptyErr<E, T, B>);
 
@@ -106,10 +106,10 @@ public readonly ref struct Parsec<E, T, A>
     /// <returns>Result of the parsing operation</returns>
     public B Parse<B>(
         ReadOnlySpan<T> stream,
-        Func<A, State<E, T>, B> cok,
-        Func<A, State<E, T>, B> eok,
-        Func<ParseError<E, T>, State<E, T>, B> cerr,
-        Func<ParseError<E, T>, State<E, T>, B> eerr)
+        Func<A, State<T>, B> cok,
+        Func<A, State<T>, B> eok,
+        Func<ParseError<E, T>, State<T>, B> cerr,
+        Func<ParseError<E, T>, State<T>, B> eerr)
     {
         Span<byte> stackMem = stackalloc byte[defaultStackSize];
         return Parse(stream, stackMem, "", cok, eok, cerr, eerr);
@@ -128,10 +128,10 @@ public readonly ref struct Parsec<E, T, A>
     public B Parse<B>(
         ReadOnlySpan<T> stream,
         string sourceName,
-        Func<A, State<E, T>, B> cok,
-        Func<A, State<E, T>, B> eok,
-        Func<ParseError<E, T>, State<E, T>, B> cerr,
-        Func<ParseError<E, T>, State<E, T>, B> eerr)
+        Func<A, State<T>, B> cok,
+        Func<A, State<T>, B> eok,
+        Func<ParseError<E, T>, State<T>, B> cerr,
+        Func<ParseError<E, T>, State<T>, B> eerr)
     {
         Span<byte> stackMem = stackalloc byte[defaultStackSize];
         return Parse(stream, stackMem, sourceName, cok, eok, cerr, eerr);
@@ -152,15 +152,15 @@ public readonly ref struct Parsec<E, T, A>
         ReadOnlySpan<T> stream, 
         Span<byte> stackMem, 
         string sourceName,
-        Func<A, State<E, T>, B> cok,
-        Func<A, State<E, T>, B> eok,
-        Func<ParseError<E, T>, State<E, T>, B> cerr,
-        Func<ParseError<E, T>, State<E, T>, B> eerr)
+        Func<A, State<T>, B> cok,
+        Func<A, State<T>, B> eok,
+        Func<ParseError<E, T>, State<T>, B> cerr,
+        Func<ParseError<E, T>, State<T>, B> eerr)
     {
         var stack        = new Stack(stackMem);
         var instructions = Instructions;
         var constants    = Constants;
-        var state        = new State<E, T>(stream, SourcePos.FromName(sourceName));
+        var state        = new State<T>(stream, SourcePos.FromName(sourceName));
 
         return ParsecInternals<E, T, A>.Parse(instructions, constants, 0, state, stack, cok, eok, cerr, eerr);
     }
@@ -171,7 +171,7 @@ public readonly ref struct Parsec<E, T, A>
     /// </summary>
     /// <returns>Parser</returns>
     public Parsec<E, T, A> Try() =>
-        new (Instructions.Cons(OpCode.Try), Constants);    
+        new (Instructions.Prepend(OpCode.Try), Constants);    
 
     /// <summary>
     /// Functor map operation

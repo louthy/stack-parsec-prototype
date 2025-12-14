@@ -6,6 +6,7 @@ using static LanguageExt.RefParsec.CharModule<LanguageExt.Common.Error>;
 
 StackTests.Run();
 
+/*
 var p0 = pure(1) | pure(2) | pure(3);
 
 var p1 = pure("testing").Map(s => s.Length);
@@ -62,9 +63,13 @@ var p13a = (error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | er
 var p13b = (error<int>(Errors.EndOfStream)   | error<int>(Errors.SinkFull)  | pure(7)).Map(x => x * 2);
 var p13 = p13a | p13b;
 
-var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);
+var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);*/
 
-var r = p13a.Parse("abcxyzabc");
+var p15a = error<int>(Errors.TimedOut);
+var p15b = error<int>(Errors.SinkFull) | pure(7);
+var p15  = p15a | p15b;
+
+var r = p15.Parse("abcxyzabc");
 
 showResult(r);
 

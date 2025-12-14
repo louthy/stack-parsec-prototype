@@ -18,7 +18,7 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="pc">Program counter</param>
     /// <param name="taken">Tokens read, so far</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ProcessSatisfy(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc)
+    static void ProcessSatisfy(Bytes instructions, Stack constants, int constantOffset, ref State<T> state, ref Stack stack, ref int pc)
     {
         var start  = state.Position.Offset;
         var data   = state.Input.Slice(start, 1);

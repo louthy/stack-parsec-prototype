@@ -2,16 +2,16 @@ namespace LanguageExt.RefParsec;
 
 public static class ParserResult
 {
-    public static ParserResult<E, T, A> ConsumedOK<E, T, A>(A value, State<E, T> state) =>
+    public static ParserResult<E, T, A> ConsumedOK<E, T, A>(A value, State<T> state) =>
         new ParserResult<E, T, A>.ConsumedOK(value, state.Position);
 
-    public static ParserResult<E, T, A> EmptyOK<E, T, A>(A value, State<E, T> state) =>
+    public static ParserResult<E, T, A> EmptyOK<E, T, A>(A value, State<T> state) =>
         new ParserResult<E, T, A>.EmptyOK(value, state.Position);
     
-    public static ParserResult<E, T, A> ConsumedErr<E, T, A>(ParseError<E, T> error, State<E, T> state) =>
+    public static ParserResult<E, T, A> ConsumedErr<E, T, A>(ParseError<E, T> error, State<T> state) =>
         new ParserResult<E, T, A>.ConsumedErr(error, state.Position);
 
-    public static ParserResult<E, T, A> EmptyErr<E, T, A>(ParseError<E, T> error, State<E, T> state) =>
+    public static ParserResult<E, T, A> EmptyErr<E, T, A>(ParseError<E, T> error, State<T> state) =>
         new ParserResult<E, T, A>.EmptyErr(error, state.Position);
 }
 

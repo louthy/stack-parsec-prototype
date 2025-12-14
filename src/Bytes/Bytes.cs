@@ -171,8 +171,8 @@ public readonly ref struct Bytes
         Add((byte)opCode);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes Cons(OpCode opCode) =>
-        Cons((byte)opCode);
+    public Bytes Prepend(OpCode opCode) =>
+        Prepend((byte)opCode);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes AddConstantId(int value)
@@ -186,59 +186,22 @@ public readonly ref struct Bytes
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependConstantId(int value)
+    {
+        if(value < 0) throw new IndexOutOfRangeException("ConstantId must be >= 0");
+        if(value > ushort.MaxValue) throw new IndexOutOfRangeException("ConstantId must be less than 65536");
+        var        v      = (ushort)value;
+        Span<byte> buffer = stackalloc byte[ConstantIdSize];
+        BitConverter.TryWriteBytes(buffer, v);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetConstantId(ref int pc, int offset)
     {
         ReadOnlySpan<byte> instrs = Span(pc, ConstantIdSize);
         pc += 2;
         return BitConverter.ToUInt16(instrs) + offset;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes AddUInt32(uint value)
-    {
-        Span<byte> buffer = stackalloc byte[4];
-        BitConverter.TryWriteBytes(buffer, value);
-        return Add(buffer);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes ConsUInt32(uint value)
-    {
-        Span<byte> buffer = stackalloc byte[4];
-        BitConverter.TryWriteBytes(buffer, value);
-        return Cons(buffer);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes AddInt32(int value)
-    {
-        Span<byte> buffer = stackalloc byte[4];
-        BitConverter.TryWriteBytes(buffer, value);
-        return Add(buffer);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes ConsInt32(int value)
-    {
-        Span<byte> buffer = stackalloc byte[4];
-        BitConverter.TryWriteBytes(buffer, value);
-        return Cons(buffer);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes AddUInt16(ushort value)
-    {
-        Span<byte> buffer = stackalloc byte[2];
-        BitConverter.TryWriteBytes(buffer, value);
-        return Add(buffer);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes ConsUInt16(ushort value)
-    {
-        Span<byte> buffer = stackalloc byte[2];
-        BitConverter.TryWriteBytes(buffer, value);
-        return Cons(buffer);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -250,19 +213,131 @@ public readonly ref struct Bytes
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes ConsInt16(short value)
+    public Bytes PrependInt16(short value)
     {
         Span<byte> buffer = stackalloc byte[2];
         BitConverter.TryWriteBytes(buffer, value);
-        return Cons(buffer);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddUInt16(ushort value)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependUInt16(ushort value)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddInt32(int value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependInt32(int value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddUInt32(uint value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependUInt32(uint value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddFloat(float value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependFloat(float value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddInt64(long value)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependInt64(long value)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddUInt64(ulong value)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependUInt64(ulong value)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Prepend(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddDouble(double value)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Add(buffer);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependDouble(double value)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        BitConverter.TryWriteBytes(buffer, value);
+        return Prepend(buffer);
     }
     
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes Add(params ReadOnlySpan<byte> valuesToAdd)
+    public Bytes Add(params ReadOnlySpan<byte> values)
     {
-        if(!Initialised) return Initialise(Math.Max(valuesToAdd.Length, InitialSize)).Add(valuesToAdd);
+        if(!Initialised) return Initialise(Math.Max(values.Length, InitialSize)).Add(values);
 
-        var size  = valuesToAdd.Length;
+        var size  = values.Length;
         var bytes = ExpandUp(size);
 
         if (Interlocked.CompareExchange(ref bytes.state.CanAdd, 1, 0) == 0)
@@ -270,7 +345,7 @@ public readonly ref struct Bytes
             // Adding to a sequence that's never been added to before.
             // This is the fastest path because we can grow into the existing buffer
             var d = bytes.values.Slice(bytes.start + bytes.count, size);
-            valuesToAdd.CopyTo(d);
+            values.CopyTo(d);
             return new Bytes(bytes.values, bytes.start, bytes.count + size);
         }
         else
@@ -278,23 +353,23 @@ public readonly ref struct Bytes
             // Adding to a sequence that's been added to before.
             // That means we can't use the existing buffer as it's been written to previously.
             // So we must clone.
-            return Clone().Add(valuesToAdd);
+            return Clone().Add(values);
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Bytes Cons(params ReadOnlySpan<byte> valuesToCons)
+    public Bytes Prepend(params ReadOnlySpan<byte> values)
     {
-        if(!Initialised) return Initialise(Math.Max(valuesToCons.Length, InitialSize)).Add(valuesToCons);
+        if(!Initialised) return Initialise(Math.Max(values.Length, InitialSize)).Add(values);
 
-        var size  = valuesToCons.Length;
+        var size  = values.Length;
         var bytes = ExpandDown(size);
 
         if (Interlocked.CompareExchange(ref bytes.state.CanCons, 1, 0) == 0)
         {
             // Adding to a sequence that's never been added to before.
             // This is the fastest path because we can grow into the existing buffer
-            valuesToCons.CopyTo(bytes.values.Slice(bytes.start - size, size));
+            values.CopyTo(bytes.values.Slice(bytes.start - size, size));
             return new Bytes(bytes.values, bytes.start - size, bytes.count + size);
         }
         else
@@ -302,7 +377,7 @@ public readonly ref struct Bytes
             // Adding to a sequence that's been added to before.
             // That means we can't use the existing buffer as it's been written to previously.
             // So we must clone.
-            return Clone().Cons(valuesToCons);
+            return Clone().Prepend(values);
         }       
     }
 

@@ -16,7 +16,7 @@ public static class Module<E, T>
     {
         var instrs = p.Instructions
                       .AddConstantId(p.Constants.Count)
-                      .Cons(OpCode.Label);
+                      .Prepend(OpCode.Label);
 
         var objs = p.Constants.Push(name);
 
@@ -29,45 +29,63 @@ public static class Module<E, T>
 
     public static Parsec<E, T, A> @try<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
-        new (p.Instructions.Cons(OpCode.Try), p.Constants);
+        new (p.Instructions.Prepend(OpCode.Try), p.Constants);
 
     public static Parsec<E, T, A> choose<A>(Parsec<E, T, A> p1, Parsec<E, T, A> p2)
         where A : allows ref struct
     {
+        //  1: OR
+        //  4: lhs instructions count (in bytes)
+        //  4: rhs instructions count (in bytes)
+        //  2: offset to second constants set
+        //  n: lhs instructions
+        //  1: RETURN
+        //  n: rhs instructions
+        //  1: RETURN
+
+        var lhs = p1.Instructions.Add(OpCode.Return);
+        var rhs = p2.Instructions.Add(OpCode.Return);
+
+        var instrs = rhs.Prepend(lhs.Span())
+                        .PrependConstantId(p1.Constants.Count)
+                        .PrependInt32(rhs.Count)
+                        .PrependInt32(lhs.Count)
+                        .Prepend(OpCode.Or);
+        
         // Next set of instruction to run if the first set fails
-        var nspan = p2.Instructions.Span();
+        //var nspan = p2.Instructions.Span();
 
         // Total number of bytes in the new instruction set.  This will allow
         // us to jump over the second instruction set if the first succeeds.
-        var next = nspan.Length + Bytes.ConstantIdSize + 4 /* this offset size */; 
+        //var next = nspan.Length + Bytes.ConstantIdSize + 4 /* this offset size */; 
         
         // Concatenate the instruction sets with meta-data in-between that
         // delimits the two sets and also gives us enough information to skip
         // the second set if the first succeeds.
-        var ninstrs = p1.Instructions
-                        .ConsInt32(p1.Instructions.Count)
-                        .Cons(OpCode.Or)
-                        .AddInt32(next)
-                        .AddConstantId(p1.Constants.Count)
-                        .Add(p2.Instructions.Span());
+        // var ninstrs = p1.Instructions
+        //                 .PrependInt32(p1.Instructions.Count)
+        //                 .Prepend(OpCode.Or)
+        //                 .AddInt32(next)
+        //                 .AddConstantId(p1.Constants.Count)
+        //              .Add(p2.Instructions.Span());
 
         // Concatenate the constant sets
-        var nconstants = p1.Constants.Append(p2.Constants);
+        var constants = p1.Constants.Append(p2.Constants);
         
-        return new(ninstrs, nconstants);
+        return new(instrs, constants);
     }
 
     public static Parsec<E, T, A> lookAhead<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
-        new (p.Instructions.Cons(OpCode.LookAhead), p.Constants);    
+        new (p.Instructions.Prepend(OpCode.LookAhead), p.Constants);    
 
     public static Parsec<E, T, A> notFollowedBy<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
-        new (p.Instructions.Cons(OpCode.NotFollowedBy), p.Constants);
+        new (p.Instructions.Prepend(OpCode.NotFollowedBy), p.Constants);
 
     public static Parsec<E, T, A> observing<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
-        new (p.Instructions.Cons(OpCode.Observing), p.Constants);
+        new (p.Instructions.Prepend(OpCode.Observing), p.Constants);
     
     public static Parsec<E, T, Unit> eof =>
         new (Bytes.singleton(OpCode.EOF), default);

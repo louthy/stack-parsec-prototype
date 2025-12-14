@@ -11,12 +11,12 @@ static partial class ParsecInternals<E, T, A>
         Bytes instructions, 
         Stack constants, 
         int constantOffset, 
-        State<E, T> state, 
+        State<T> state, 
         Stack stack,
-        Func<A, State<E, T>, B> consumedOk,
-        Func<A, State<E, T>, B> emptyOk,
-        Func<ParseError<E, T>, State<E, T>, B> consumedErr,
-        Func<ParseError<E, T>, State<E, T>, B> emptyErr)
+        Func<A, State<T>, B> consumedOk,
+        Func<A, State<T>, B> emptyOk,
+        Func<ParseError<E, T>, State<T>, B> consumedErr,
+        Func<ParseError<E, T>, State<T>, B> emptyErr)
     {
         var initial = state.Position.Offset;
         ParseUntyped(instructions, constants, constantOffset, ref state, ref stack);
@@ -64,17 +64,14 @@ static partial class ParsecInternals<E, T, A>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack)
+    static void ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<T> state, ref Stack stack)
     {
         var pc = 0; // program counter
         ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
     }
 
-    static void ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<E, T> state, ref Stack stack, ref int pc)
+    static void ParseUntyped(Bytes instructions, Stack constants, int constantOffset, ref State<T> state, ref Stack stack, ref int pc)
     {
-        var constantOffsetReset = constantOffset;
-        var initialOffset       = state.Position.Offset;
-        
         while(true)
         {
             // No more instructions?
@@ -101,69 +98,50 @@ static partial class ParsecInternals<E, T, A>
                     ProcessError(instructions, constants, constantOffset, state, ref stack, ref pc);
                     break;
                 
+                case OpCode.Return:
+                    if (!stack.IsErr())
+                    {
+                        // Push 'OK' if we're not failing
+                        stack = stack.PushOK();
+                    }
+                    return;
+                
                 case OpCode.Or:
-                    // Find the size of the lhs
-                    var lhsSize = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
-                    
-                    // Get just the lhs instructions
-                    var lhs     = instructions.Slice(pc + 4, lhsSize);
-                    
-                    // Run the lhs
-                    ParseUntyped(lhs, constants, constantOffset, ref state, ref stack);
-                    
-                    // Skip to the end of the lhs
-                    pc += 4 + lhsSize;
+                    //  1: OR
+                    //  4: lhs instructions count (in bytes)
+                    //  4: rhs instructions count (in bytes)
+                    //  2: offset to second constants set
+                    //  n: lhs instructions
+                    //  1: RETURN
+                    //  n: rhs instructions
 
+                    var span    = instructions.Span();
+                    var lhsSize = BitConverter.ToInt32(span.Slice(pc, 4));
+                    var rhsSize = BitConverter.ToInt32(span.Slice(pc + 4, 4));
+                    var lhs     = instructions.Slice(pc + 10, lhsSize);
+                    var so      = state.Position.Offset;
+                    
+                    ParseUntyped(lhs, constants, constantOffset, ref state, ref stack);
                     if (stack.IsOK())
                     {
-                        // We're not midway through an OR instruction, so reset the constant offset
-                        constantOffset = constantOffsetReset;
-
-                        if (pc >= instructions.Count)
-                        {
-                            // No more instructions, so skip to the end of the section
-                            return;
-                        }
-
-                        if (pc + 4 > instructions.Count)
-                        {
-                            // If we get here, then the instructions are corrupt
-                            throw new Exception("Or: expected constant offset");
-                        }
-                            
-                        // Read the offset 
-                        var offset = BitConverter.ToInt32(instructions.Span().Slice(pc, 4));
-
-                        // Skip the offset, the constant-offset, and the rhs instructions 
-                        pc += offset;
+                        pc = pc + 10 + lhsSize + rhsSize;
+                    }
+                    else if(state.Position.Offset > so)
+                    {
+                        // We've consumed, which makes an error fatal, so early-out
+                        return;
                     }
                     else
                     {
-                        var taken = state.Position.Offset - initialOffset;
-                        if (taken > 0)
+                        // We have an empty-error, so we can try the right-hand side
+                        var rhs      = instructions.Slice(pc + 10 + lhsSize, rhsSize);
+                        var constOff = BitConverter.ToUInt16(span.Slice(pc + 8, 2));
+                        ParseUntyped(rhs, constants, constantOffset + constOff, ref state, ref stack);
+                        if (stack.IsOK())
                         {
-                            // We've consumed, which makes an error fatal, so early-out
-                            return;
+                            pc = pc + 10 + lhsSize + rhsSize;
                         }
-                        
-                        // Skip the int32 offset value (that is only needed if we had succeeded)
-                        pc += 4;
-
-                        // Constants offset
-                        // Because constants are appended when the choice operator is used, we have an indexing problem
-                        // with all absolute constant-identifiers.  So, we simply track an offset value when we need
-                        // to process the right-hand-side of the choice-operator.  This shifts the constant-identifiers
-                        // into the correct range.
-                        constantOffset = BitConverter.ToInt16(instructions.Span().Slice(pc, Bytes.ConstantIdSize));
-                        pc += Bytes.ConstantIdSize;
-                        
-
-                        // Skip the error checking at the end of this function, we've set the program-counter to the
-                        // right-hand-side of the choice-operator, so we can just continue. The top of the stack will
-                        // have the error value, so we can collect multiple errors if necessary.
-                        continue;
                     }
-
                     break;
                 
                 case OpCode.Token:
