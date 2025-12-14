@@ -6,7 +6,6 @@ using static LanguageExt.RefParsec.CharModule<LanguageExt.Common.Error>;
 
 StackTests.Run();
 
-/*
 var p0 = pure(1) | pure(2) | pure(3);
 
 var p1 = pure("testing").Map(s => s.Length);
@@ -58,12 +57,11 @@ var p11 = from x in oneOf(['a', 'b', 'c'])
 var p12 = from x in token('a') | token('x')
           from y in token('b') | token('y')
           select (x, y);
-
 var p13a = (error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | error<int>(Errors.TimedOut)).Map(x => x * 2);
 var p13b = (error<int>(Errors.EndOfStream)   | error<int>(Errors.SinkFull)  | pure(7)).Map(x => x * 2);
 var p13 = p13a | p13b;
 
-var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);*/
+var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);
 
 var p15a = error<int>(Errors.TimedOut);
 var p15b = error<int>(Errors.SinkFull) | pure(7);
