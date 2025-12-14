@@ -107,41 +107,7 @@ static partial class ParsecInternals<E, T, A>
                     return;
                 
                 case OpCode.Or:
-                    //  1: OR
-                    //  4: lhs instructions count (in bytes)
-                    //  4: rhs instructions count (in bytes)
-                    //  2: offset to second constants set
-                    //  n: lhs instructions
-                    //  1: RETURN
-                    //  n: rhs instructions
-
-                    var span    = instructions.Span();
-                    var lhsSize = BitConverter.ToInt32(span.Slice(pc, 4));
-                    var rhsSize = BitConverter.ToInt32(span.Slice(pc + 4, 4));
-                    var lhs     = instructions.Slice(pc + 10, lhsSize);
-                    var so      = state.Position.Offset;
-                    
-                    ParseUntyped(lhs, constants, constantOffset, ref state, ref stack);
-                    if (stack.IsOK())
-                    {
-                        pc = pc + 10 + lhsSize + rhsSize;
-                    }
-                    else if(state.Position.Offset > so)
-                    {
-                        // We've consumed, which makes an error fatal, so early-out
-                        return;
-                    }
-                    else
-                    {
-                        // We have an empty-error, so we can try the right-hand side
-                        var rhs      = instructions.Slice(pc + 10 + lhsSize, rhsSize);
-                        var constOff = BitConverter.ToUInt16(span.Slice(pc + 8, 2));
-                        ParseUntyped(rhs, constants, constantOffset + constOff, ref state, ref stack);
-                        if (stack.IsOK())
-                        {
-                            pc = pc + 10 + lhsSize + rhsSize;
-                        }
-                    }
+                    ProcessOr(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
                 
                 case OpCode.Token:
@@ -232,4 +198,5 @@ static partial class ParsecInternals<E, T, A>
             }
         }
     }
+
 }

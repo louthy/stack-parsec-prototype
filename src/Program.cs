@@ -67,7 +67,7 @@ var p15a = error<int>(Errors.TimedOut);
 var p15b = error<int>(Errors.SinkFull) | pure(7);
 var p15  = p15a | p15b;
 
-var r = p15.Parse("abcxyzabc");
+var r = p13.Parse("abcxyzabc");
 
 showResult(r);
 
