@@ -80,4 +80,11 @@ public static class BytesExtensions
         public Bytes Cons(Bytes bytes) =>
             bytes.PrependDouble(self);
     }
+
+    extension(string self)
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Bytes Cons(Bytes bytes) =>
+            bytes.PrependString(self);
+    }    
 }

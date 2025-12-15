@@ -5,7 +5,7 @@ namespace LanguageExt.RefParsec;
 
 /// <summary>
 /// `Hints` represent a collection of `ErrorItem` values to be included into
-/// q `ParseError` (when it's a `TrivialError`) as 'expected' message items
+/// a `ParseError` (when it's a `TrivialError`) as 'expected' message items
 /// when a parser fails without consuming input right after a successful parser
 /// that produced the hints. 
 /// </summary>

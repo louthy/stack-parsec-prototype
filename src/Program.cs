@@ -67,7 +67,9 @@ var p15a = error<int>(Errors.TimedOut);
 var p15b = error<int>(Errors.SinkFull) | pure(7);
 var p15  = p15a | p15b;
 
-var r = p13.Parse("abcxyzabc");
+var p16 = label("something", error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut));
+
+var r = p16.Parse("abcxyzabc");
 
 showResult(r);
 

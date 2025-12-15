@@ -18,8 +18,8 @@ public enum OpCode : byte
     OneOf,
     NoneOf,
     Try,
-    
     Label,
+    
     LookAhead,
     NotFollowedBy,
     EOF,

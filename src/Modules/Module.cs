@@ -12,21 +12,51 @@ public static class Module<E, T>
     where T : IEqualityOperators<T, T, bool>    
 {
     public static Parsec<E, T, A> label<A>(string name, Parsec<E, T, A> p)
-        where A : allows ref struct 
-    {
-        var instrs = p.Instructions
-                      .AddConstantId(p.Constants.Count)
-                      .Prepend(OpCode.Label);
-
-        var objs = p.Constants.Push(name);
-
-        return new Parsec<E, T, A>(instrs, objs);
-    }
+        where A : allows ref struct => 
+        new (p.Instructions.PrependString(name).Prepend(OpCode.Label), p.Constants);
 
     public static Parsec<E, T, A> error<A>(E error)  
         where A : allows ref struct =>
         new (Bytes.singleton(OpCode.Error).AddConstantId(0), Stack.singleton(error));
 
+    /*/// <summary>
+    /// Stop parsing and report a trivial `ParseError`.
+    /// </summary>
+    /// <param name="unexpected">Optional unexpected tokens</param>
+    /// <param name="expected">Expected tokens</param>
+    /// <typeparam name="A">Value type (never yielded because this is designed to error)</typeparam>
+    /// <returns>Parser</returns>
+    public static Parsec<E, T, A> failure<A>(Option<ErrorItem<T>> unexpected, Set<ErrorItem<T>> expected) =>
+        getOffset >>> (o => error<A>(ParseError.Trivial<T, E>(o, unexpected, expected)));
+
+    /// <summary>
+    /// Stop parsing and report a fancy 'ParseError'. To report a single custom parse error
+    /// </summary>
+    /// <param name="errors">Optional unexpected tokens</param>
+    /// <typeparam name="A">Value type (never yielded because this is designed to error)</typeparam>
+    /// <returns>Parser</returns>
+    public static Parsec<E, T, A> failure<A>(Set<ErrorFancy<E>> errors) =>
+        getOffset >>> (o => error<A>(ParseError.Fancy<T, E>(o, errors)));
+
+    /// <summary>
+    /// Stop parsing and report a fancy 'ParseError'. To report a single custom parse error
+    /// </summary>
+    /// <param name="error">Custom error</param>
+    /// <typeparam name="A">Value type (never yielded because this is designed to error)</typeparam>
+    /// <returns>Parser</returns>
+    public static Parsec<E, T, A> failure<A>(E error) =>
+        Pure(error) >> ErrorFancy.Custom >> Set.singleton >> (failure<A>) >> lower;
+
+    /// <summary>
+    /// The parser `unexpected(item)` fails with an error message telling
+    /// about an unexpected `item` without consuming any input.
+    /// </summary>
+    /// <param name="item">The unexpected item</param>
+    /// <typeparam name="A">Value type (never yielded because this is designed to error)</typeparam>
+    /// <returns>Parser</returns>
+    public static Parsec<E, T, A> unexpected<A>(ErrorItem<T> item) =>
+        failure<A>(Some(item), default);*/
+    
     public static Parsec<E, T, A> @try<A>(Parsec<E, T, A> p)  
         where A : allows ref struct =>
         new (p.Instructions.Prepend(OpCode.Try), p.Constants);

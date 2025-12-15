@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace LanguageExt.RefParsec;
 
@@ -205,6 +206,22 @@ public readonly ref struct Bytes
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes AddString(string text)
+    {
+        var charSpan = text.AsSpan();
+        var byteSpan = MemoryMarshal.AsBytes(charSpan);
+        return AddInt32(text.Length).Add(byteSpan);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Bytes PrependString(string text)
+    {
+        var charSpan = text.AsSpan();
+        var byteSpan = MemoryMarshal.AsBytes(charSpan);
+        return Prepend(byteSpan).PrependInt32(text.Length);
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Bytes AddInt16(short value)
     {
         Span<byte> buffer = stackalloc byte[2];
@@ -379,6 +396,65 @@ public readonly ref struct Bytes
             // So we must clone.
             return Clone().Prepend(values);
         }       
+    }
+
+    public ReadOnlySpan<char> ReadString(ref int offset)
+    {
+        var span     = Span().Slice(offset);
+        var charSize = BitConverter.ToInt32(span[..4]);
+        var byteSize = charSize * sizeof(char);
+        var bytes    = span.Slice(4, byteSize);
+        var chars    = MemoryMarshal.Cast<byte, char>(bytes);
+        offset += 4 + byteSize;
+        return chars;
+    }
+
+    public short ReadInt16(ref int offset)
+    {
+        var span  = Span().Slice(offset);
+        var value = BitConverter.ToInt16(span[..2]);
+        offset += 2;
+        return value;
+    }
+
+    public ushort ReadUInt16(ref int offset)
+    {
+        var span  = Span().Slice(offset);
+        var value = BitConverter.ToUInt16(span[..2]);
+        offset += 2;
+        return value;
+    }
+
+    public int ReadInt32(ref int offset)
+    {
+        var span  = Span().Slice(offset);
+        var value = BitConverter.ToInt32(span[..4]);
+        offset += 4;
+        return value;
+    }
+
+    public uint ReadUInt32(ref int offset)
+    {
+        var span  = Span().Slice(offset);
+        var value = BitConverter.ToUInt32(span[..4]);
+        offset += 4;
+        return value;
+    }
+
+    public long ReadLong(ref int offset)
+    {
+        var span  = Span().Slice(offset);
+        var value = BitConverter.ToInt64(span[..8]);
+        offset += 8;
+        return value;
+    }
+
+    public ulong ReadULong(ref int offset)
+    {
+        var span  = Span().Slice(offset);
+        var value = BitConverter.ToUInt64(span[..8]);
+        offset += 8;
+        return value;
     }
 
     public static Bytes Empty

@@ -420,10 +420,10 @@ public static class ErrorStack
 
                 case ErrorStackType.Label:
                 {
-                    if (stack.Peek<string>(out var l))
+                    if (stack.Peek<ReadOnlySpan<char>>(out var l))
                     {
                         stack = stack.Pop();
-                        var item = ErrorItem.Label<T>(l);
+                        var item = ErrorItem.Label<T>(new string(l));
                         if (type == ErrorStackType.Expected)
                         {
                             expectedTrivialItems.Add(item);
