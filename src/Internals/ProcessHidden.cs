@@ -18,7 +18,7 @@ static partial class ParsecInternals<E, T, A>
     /// <param name="stack">VM stack</param>
     /// <param name="pc">Program counter</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    static void ProcessLabel(
+    static void ProcessHidden(
         Bytes instructions,
         Stack constants, 
         int constantOffset, 
@@ -26,24 +26,15 @@ static partial class ParsecInternals<E, T, A>
         ref Stack stack,
         ref int pc)
     {
-        var span     = instructions.Span().Slice(pc);
-        var charSize = BitConverter.ToInt32(span[..4]);
-        var byteSize = charSize * sizeof(char);
-        var bytes    = span.Slice(4, byteSize);
-        var label    = MemoryMarshal.Cast<byte, char>(bytes);
-        var lsize    = 4 + byteSize;
-
-        // Skip past the label header and text
-        pc += lsize;
         var so = state.Position.Offset;
         
         ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
-
+        
         if (stack.IsErr() && state.Position.Offset == so)
         {
             // We have an empty-error, so we can try the label
             stack = stack.PushTerminator(state, out var pos)
-                         .PushLabel(label, true)
+                         .PushHidden()
                          .PushErr(pos);
         }
     }

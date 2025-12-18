@@ -11,7 +11,8 @@ public enum ErrorStackType : byte
     Token               = 0x04,
     Tokens              = 0x05 ,
     Label               = 0x06,
-    EndOfInput          = 0x07,
+    Hidden              = 0x07,
+    EndOfInput          = 0x08,
     
     // Expectations
     Expected            = 0x10,

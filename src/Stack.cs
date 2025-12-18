@@ -15,7 +15,7 @@ namespace LanguageExt.RefParsec;
 public readonly ref struct Stack
 {
 #if DEBUG
-    const bool ShowDebugMessages = true;
+    const bool ShowDebugMessages = false;
 #else    
     const bool ShowDebugMessages = false;
 #endif

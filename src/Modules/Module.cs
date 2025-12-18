@@ -11,10 +11,36 @@ namespace LanguageExt.RefParsec;
 public static class Module<E, T>
     where T : IEqualityOperators<T, T, bool>    
 {
+    /// <summary>
+    /// Replace any 'expected' error contexts with a label.  This allows for more meaningful error messages to
+    /// be applied at a higher-scope than where more token-level errors are yielded.
+    /// </summary>
+    /// <param name="name">Label value</param>
+    /// <param name="p">Parser to run and to label the failure results of if necessary (only labels empty-errors)</param>
+    /// <typeparam name="A">Parsed value type</typeparam>
+    /// <returns>Parser</returns>
     public static Parsec<E, T, A> label<A>(string name, Parsec<E, T, A> p)
         where A : allows ref struct => 
         new (p.Instructions.PrependString(name).Prepend(OpCode.Label), p.Constants);
+    
+    /// <summary>
+    /// Clear any 'expected' error contexts, this is like `label` with an empty string, but it more formally clears
+    /// any previously expected error-items.
+    /// </summary>
+    /// <param name="p">Parser to run and to label the failure results of if necessary (only labels empty-errors)</param>
+    /// <typeparam name="A">Parsed value type</typeparam>
+    /// <returns>Parser</returns>
+    public static Parsec<E, T, A> hidden<A>(Parsec<E, T, A> p)
+        where A : allows ref struct => 
+        new (p.Instructions.Prepend(OpCode.Hidden), p.Constants);
 
+    /// <summary>
+    /// Yields a custom-error value.  Custom-error values override all other trivial error types, like token-level
+    /// errors, label-errors, or end-of-stream errors. 
+    /// </summary>
+    /// <param name="error"></param>
+    /// <typeparam name="A"></typeparam>
+    /// <returns></returns>
     public static Parsec<E, T, A> error<A>(E error)  
         where A : allows ref struct =>
         new (Bytes.singleton(OpCode.Error).AddConstantId(0), Stack.singleton(error));

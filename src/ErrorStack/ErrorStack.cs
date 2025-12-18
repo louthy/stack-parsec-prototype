@@ -17,29 +17,40 @@ public static class ErrorStack
                     if (stack.Peek<SourcePos>(out var pos))
                     {
                         stack = stack.Pop();
-                        ErrorItem<T>? unexpectedTrivialItem = null;
-                        var           expectedTrivialItems   = new List<ErrorItem<T>>();
-                        var           fancyItems             = new List<ErrorFancy<E>>();
+                        ErrorItem<T>?      unexpectedTrivialItem = null;
+                        List<ErrorItem<T>>? expectedTrivialItems = null;
+                        var                fancyItems            = new List<ErrorFancy<E>>();
 
-                        while (PopErrorItem(fancyItems, expectedTrivialItems, ref unexpectedTrivialItem, ref stack))
+                        while (PopErrorItem(ref fancyItems, ref expectedTrivialItems, ref unexpectedTrivialItem, ref stack))
                         {
                         }
 
-                        if (fancyItems.Count > 0)
+                        if (fancyItems is not null && fancyItems.Count > 0)
                         {
                             // Ignore trivial errors
                             error = ParseError.Fancy<E, T>(pos, toSet(fancyItems));
                             return true;
                         }
 
-                        if (unexpectedTrivialItem is null && expectedTrivialItems.Count == 0)
+                        if (expectedTrivialItems is not null && expectedTrivialItems.Count > 0)
+                        {
+                            expectedTrivialItems = expectedTrivialItems.Where(e => e is not ErrorItem<T>.Label { Value: "" }).ToList();
+                        }
+                        
+                        if (unexpectedTrivialItem is null && (expectedTrivialItems is null || expectedTrivialItems.Count == 0))
                         {
                             // No errors found
                             error = null!;
                             return false;
                         }
 
-                        error = ParseError.Trivial<E, T>(pos, Optional(unexpectedTrivialItem), toSet(expectedTrivialItems));
+                        error = ParseError.Trivial<E, T>(
+                            pos, 
+                            Optional(unexpectedTrivialItem), 
+                            expectedTrivialItems is null 
+                                ? [] 
+                                : toSet(expectedTrivialItems));
+                        
                         return true;
                     }
                     else
@@ -156,6 +167,11 @@ public static class ErrorStack
                  .PushExpectation(expected);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Stack PushHidden() =>
+            stack.Push(ErrorStackType.Hidden)
+                 .PushExpectation(true);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Stack PushEndOfInput(bool expected) =>
             stack.Push(ErrorStackType.EndOfInput)
                  .PushExpectation(expected);
@@ -197,8 +213,8 @@ public static class ErrorStack
     }
     
     public static bool PopErrorItem<E, T>(
-        List<ErrorFancy<E>> fancyItems,
-        List<ErrorItem<T>> expectedTrivialItems,
+        ref List<ErrorFancy<E>>? fancyItems,
+        ref List<ErrorItem<T>>? expectedTrivialItems,
         ref ErrorItem<T>? unexpectedTrivialItem,
         ref Stack stack)
     {
@@ -211,11 +227,11 @@ public static class ErrorStack
                     return false;
                 
                 case ErrorStackType.Expected or ErrorStackType.Unexpected:
-                    return PopTrivialErrorItem(expectedTrivialItems, ref unexpectedTrivialItem, ref stack, type);
+                    return PopTrivialErrorItem(ref expectedTrivialItems, ref unexpectedTrivialItem, ref stack, type);
 
                 case ErrorStackType.Fancy:
                 {
-                    return PopFancyErrorItem(fancyItems, ref stack);
+                    return PopFancyErrorItem(ref fancyItems, ref stack);
                 }
                     
                 default:
@@ -254,7 +270,7 @@ public static class ErrorStack
         }
     }
 
-    static bool PopFancyErrorItem<E>(List<ErrorFancy<E>> fancyItems, ref Stack stack)
+    static bool PopFancyErrorItem<E>(ref List<ErrorFancy<E>>? fancyItems, ref Stack stack)
     {
         if (stack.Peek<ErrorStackType>(out var subtype))
         {
@@ -265,6 +281,7 @@ public static class ErrorStack
                     if (stack.Peek<string>(out var txt))
                     {
                         stack = stack.Pop();
+                        fancyItems ??= [];
                         fancyItems.Add(ErrorFancy.Fail<E>(txt));
                         return true;
                     }
@@ -284,6 +301,7 @@ public static class ErrorStack
                             if (stack.Peek<int>(out var ordering))
                             {
                                 stack = stack.Pop();
+                                fancyItems ??= [];
                                 fancyItems.Add(ErrorFancy.Indentation<E>(ordering, reference, actual));
                                 return true;
                             }
@@ -306,6 +324,7 @@ public static class ErrorStack
                     if (stack.Peek<E>(out var err))
                     {
                         stack = stack.Pop();
+                        fancyItems ??= [];
                         fancyItems.Add(ErrorFancy.Custom(err));
                         return true;
                     }
@@ -351,7 +370,7 @@ public static class ErrorStack
     }
 
     static bool PopTrivialErrorItem<T>(
-        List<ErrorItem<T>> expectedTrivialItems, 
+        ref List<ErrorItem<T>>? expectedTrivialItems, 
         ref ErrorItem<T>? unexpectedTrivialItem,
         ref Stack stack, 
         ErrorStackType type)
@@ -361,9 +380,19 @@ public static class ErrorStack
             stack = stack.Pop();
             switch (subtype)
             {
+                case ErrorStackType.Hidden:
+                {
+                    expectedTrivialItems ??= [];
+                    expectedTrivialItems.Clear();
+                    expectedTrivialItems.Add(ErrorItem<T>.Label.Hidden);
+                    return true;
+                }
+                
                 // If we already have a label or an end-of-input, then we can ignore 
                 case ErrorStackType.Token or ErrorStackType.Tokens 
-                    when type == ErrorStackType.Expected && expectedTrivialItems.Exists(e => e is ErrorItem<T>.Label or ErrorItem<T>.EndfOfInput):
+                    when type == ErrorStackType.Expected && 
+                         expectedTrivialItems is not null && 
+                         expectedTrivialItems.Exists(e => e is ErrorItem<T>.Label or ErrorItem<T>.EndfOfInput):
                 {
                     stack = stack.Pop();
                     return true;
@@ -377,6 +406,7 @@ public static class ErrorStack
                         var item = ErrorItem.Token(t);
                         if (type == ErrorStackType.Expected)
                         {
+                            expectedTrivialItems ??= [];
                             expectedTrivialItems.Add(item);
                         }
                         else if(unexpectedTrivialItem is null)
@@ -405,6 +435,7 @@ public static class ErrorStack
                         var item = ErrorItem.Tokens(ts);
                         if (type == ErrorStackType.Expected)
                         {
+                            expectedTrivialItems ??= [];
                             expectedTrivialItems.Add(item);
                         }
                         else if (unexpectedTrivialItem is null)
@@ -434,6 +465,7 @@ public static class ErrorStack
                         var item = ErrorItem.Label<T>(new string(l));
                         if (type == ErrorStackType.Expected)
                         {
+                            expectedTrivialItems ??= [];
                             expectedTrivialItems.Add(item);
                         }
                         else if (unexpectedTrivialItem is null)
@@ -461,6 +493,7 @@ public static class ErrorStack
                     var item = ErrorItem.EndOfInput<T>();
                     if (type == ErrorStackType.Expected)
                     {
+                        expectedTrivialItems ??= [];
                         expectedTrivialItems.Add(item);
                     }
                     else if (unexpectedTrivialItem is null)
@@ -502,6 +535,7 @@ public static class ErrorStack
                     return true;
                 }
 
+                case ErrorStackType.Hidden:
                 case ErrorStackType.EndOfInput:
                 {
                     return true;

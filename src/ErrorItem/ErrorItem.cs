@@ -42,6 +42,8 @@ public abstract record ErrorItem<T> : ErrorItemBase, K<ErrorItem, T>, IComparabl
     /// <param name="Value">Label value</param>
     public record Label(string Value) : ErrorItem<T>
     {
+        internal static readonly ErrorItem<T> Hidden = new Label("");
+        
         public override int CompareTo(ErrorItem<T>? other) =>
             other switch
             {

@@ -158,6 +158,10 @@ static partial class ParsecInternals<E, T, A>
                     ProcessLabel(instructions, constants, constantOffset, ref state, ref stack, ref pc);
                     break;
                 
+                case OpCode.Hidden:
+                    ProcessHidden(instructions, constants, constantOffset, ref state, ref stack, ref pc);
+                    break;
+                
                 default:
                     throw new NotImplementedException($"OpCode {(OpCode)instruction} not implemented");
             }

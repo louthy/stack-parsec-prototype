@@ -19,6 +19,7 @@ public enum OpCode : byte
     NoneOf,
     Try,
     Label,
+    Hidden,
     
     LookAhead,
     NotFollowedBy,

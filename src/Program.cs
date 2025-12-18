@@ -71,7 +71,9 @@ var p15  = p15a | p15b;
 
 var p16 = label("something", tokens("xyz"));
 
-var r = p16.Parse("abcxyzabc", Seq);
+var p17 = hidden(tokens("xyz"));
+
+var r = p17.Parse("abcxyzabc", Seq);
 
 showResult(r);
 
