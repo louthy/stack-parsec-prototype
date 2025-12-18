@@ -29,7 +29,6 @@ TBC.
 ## Examples
 
 ```c#
-
 var p0 = pure(1) | pure(2) | pure(3);
 
 var p1 = pure("testing").Map(s => s.Length);
@@ -78,5 +77,25 @@ var p11 = from x in oneOf(['a', 'b', 'c'])
           from _ in oneOf(['a', 'b', 'c'])
           select $"({x}, {y}, {z})";
 
-var p12 = oneOf(['a', 'b', 'c']) | oneOf(['x', 'y', 'z']);
+var p12 = from x in token('a') | token('x')
+          from y in token('b') | token('y')
+          select (x, y);
+
+var p13a = (error<int>(Errors.SequenceEmpty) | error<int>(Errors.Cancelled) | error<int>(Errors.TimedOut)).Map(x => x * 2);
+var p13b = (error<int>(Errors.EndOfStream)   | error<int>(Errors.SinkFull)  | pure(7)).Map(x => x * 2);
+var p13 = p13a | p13b;
+
+var p14 = error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut);
+
+var p15a = error<int>(Errors.TimedOut);
+var p15b = error<int>(Errors.SinkFull) | pure(7);
+var p15  = p15a | p15b;
+
+var p16 = label("something", tokens("xyz"));
+
+var p17 = hidden(tokens("xyz"));
+
+var r = p17.Parse("abcxyzabc", Seq);
+
+showResult(r);
 ```
