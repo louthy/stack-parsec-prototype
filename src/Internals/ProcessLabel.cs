@@ -35,10 +35,9 @@ static partial class ParsecInternals<E, T, A>
 
         // Skip past the label header and text
         pc += lsize;
-        var next = instructions.Slice(pc + lsize);
-        var so   = state.Position.Offset;
+        var so = state.Position.Offset;
         
-        ParseUntyped(next, constants, constantOffset, ref state, ref stack);
+        ParseUntyped(instructions, constants, constantOffset, ref state, ref stack, ref pc);
 
         if (stack.IsErr() && state.Position.Offset == so)
         {

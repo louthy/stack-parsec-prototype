@@ -1,5 +1,7 @@
-﻿using LanguageExt.Common;
+﻿using LanguageExt;
+using LanguageExt.Common;
 using LanguageExt.RefParsec;
+using LanguageExt.Traits;
 using static LanguageExt.Prelude;
 using static LanguageExt.RefParsec.Module<LanguageExt.Common.Error, char>;
 using static LanguageExt.RefParsec.CharModule<LanguageExt.Common.Error>;
@@ -67,9 +69,9 @@ var p15a = error<int>(Errors.TimedOut);
 var p15b = error<int>(Errors.SinkFull) | pure(7);
 var p15  = p15a | p15b;
 
-var p16 = label("something", error<int>(Errors.EndOfStream) | error<int>(Errors.SinkFull) | error<int>(Errors.TimedOut));
+var p16 = label("something", tokens("xyz"));
 
-var r = p16.Parse("abcxyzabc");
+var r = p16.Parse("abcxyzabc", Seq);
 
 showResult(r);
 

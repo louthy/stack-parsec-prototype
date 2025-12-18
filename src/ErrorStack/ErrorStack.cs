@@ -361,6 +361,14 @@ public static class ErrorStack
             stack = stack.Pop();
             switch (subtype)
             {
+                // If we already have a label or an end-of-input, then we can ignore 
+                case ErrorStackType.Token or ErrorStackType.Tokens 
+                    when type == ErrorStackType.Expected && expectedTrivialItems.Exists(e => e is ErrorItem<T>.Label or ErrorItem<T>.EndfOfInput):
+                {
+                    stack = stack.Pop();
+                    return true;
+                }
+                
                 case ErrorStackType.Token:
                 {
                     if (stack.Peek<T>(out var t))
